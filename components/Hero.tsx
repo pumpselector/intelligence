@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PumpNetworkMap from "./PumpNetworkMap";
 
 export default function Hero() {
@@ -20,12 +21,12 @@ export default function Hero() {
             do not miss any connection in the pump industry.
           </p>
 
-          <a
-            href="#"
+          <Link
+            href="/intelligence"
             className="mt-10 inline-flex items-center justify-center rounded-md bg-amber-400 px-8 py-4 text-sm font-bold uppercase tracking-wide text-slate-900 shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-300"
           >
             Access Database
-          </a>
+          </Link>
         </div>
 
         <div className="relative">
