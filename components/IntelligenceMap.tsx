@@ -2,9 +2,10 @@
 
 import { useMemo } from "react";
 import Image from "next/image";
-import { Dealer } from "@/lib/dealers";
+import { Dealer, hasValue } from "@/lib/dealers";
 import { countryToPercent } from "@/lib/countryCoords";
 import { PumpShapeIcon } from "@/components/shapes";
+import Square from "@/components/shapes/Square";
 
 const MAX_MARKERS_PER_COUNTRY = 16;
 const OFFSET_STEP_PX = 9;
@@ -15,11 +16,17 @@ function spiralOffset(index: number) {
   return { dx: radius * Math.cos(angle), dy: radius * Math.sin(angle) };
 }
 
+type Marker =
+  | { kind: "dealer"; key: string; id: number; pump: string; country: string; title: string }
+  | { kind: "producer"; key: string; name: string; pump: string; country: string; title: string };
+
 type IntelligenceMapProps = {
   dealers: Dealer[];
   allPumpTypes: string[];
   selectedId: number | null;
-  onMarkerClick: (id: number) => void;
+  selectedProducer: string | null;
+  onDealerClick: (id: number) => void;
+  onProducerClick: (name: string) => void;
   onOverflowClick: (country: string) => void;
 };
 
@@ -27,16 +34,53 @@ export default function IntelligenceMap({
   dealers,
   allPumpTypes,
   selectedId,
-  onMarkerClick,
+  selectedProducer,
+  onDealerClick,
+  onProducerClick,
   onOverflowClick,
 }: IntelligenceMapProps) {
   const groups = useMemo(() => {
-    const map = new Map<string, Dealer[]>();
+    const map = new Map<string, Marker[]>();
+
+    const addMarker = (country: string, marker: Marker) => {
+      const list = map.get(country);
+      if (list) list.push(marker);
+      else map.set(country, [marker]);
+    };
+
+    const seenProducers = new Set<string>();
     for (const row of dealers) {
-      const list = map.get(row.ulke);
-      if (list) list.push(row);
-      else map.set(row.ulke, [row]);
+      if (hasValue(row.uretici) && hasValue(row.uretici_ulke) && hasValue(row.pump)) {
+        const producerKey = `${row.uretici}|${row.uretici_ulke}|${row.pump}`;
+        if (!seenProducers.has(producerKey)) {
+          seenProducers.add(producerKey);
+          addMarker(row.uretici_ulke, {
+            kind: "producer",
+            key: producerKey,
+            name: row.uretici,
+            pump: row.pump,
+            country: row.uretici_ulke,
+            title: `${row.uretici} · manufacturer (${row.pump}) · ${row.uretici_ulke}`,
+          });
+        }
+      }
     }
+
+    for (const row of dealers) {
+      if (hasValue(row.bayi_ulke) && hasValue(row.pump)) {
+        addMarker(row.bayi_ulke, {
+          kind: "dealer",
+          key: `dealer-${row.id}`,
+          id: row.id,
+          pump: row.pump,
+          country: row.bayi_ulke,
+          title: `${hasValue(row.bayi_adi) ? row.bayi_adi : "Dealer"} · ${
+            hasValue(row.uretici) ? row.uretici : "?"
+          } (${row.pump}) · ${row.bayi_ulke}`,
+        });
+      }
+    }
+
     return [...map.entries()];
   }, [dealers]);
 
@@ -50,24 +94,30 @@ export default function IntelligenceMap({
           className="pointer-events-none select-none object-contain opacity-70"
         />
 
-        {groups.map(([country, rows]) => {
+        {groups.map(([country, markers]) => {
           const pos = countryToPercent(country);
           if (!pos) return null;
 
-          const visible = rows.slice(0, MAX_MARKERS_PER_COUNTRY);
-          const overflow = rows.length - visible.length;
+          const visible = markers.slice(0, MAX_MARKERS_PER_COUNTRY);
+          const overflow = markers.length - visible.length;
 
           return (
             <div key={country}>
-              {visible.map((row, i) => {
+              {visible.map((marker, i) => {
                 const { dx, dy } = spiralOffset(i);
-                const isSelected = row.id === selectedId;
+                const isSelected =
+                  marker.kind === "dealer"
+                    ? marker.id === selectedId
+                    : marker.name === selectedProducer;
+
                 return (
                   <button
-                    key={row.id}
+                    key={marker.key}
                     type="button"
-                    onClick={() => onMarkerClick(row.id)}
-                    title={`${row.bayi_adi} · ${row.satici} (${row.pump}) · ${country}`}
+                    onClick={() =>
+                      marker.kind === "dealer" ? onDealerClick(marker.id) : onProducerClick(marker.name)
+                    }
+                    title={marker.title}
                     className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform hover:z-10 hover:scale-150"
                     style={{ top: `calc(${pos.top}% + ${dy}px)`, left: `calc(${pos.left}% + ${dx}px)` }}
                   >
@@ -78,7 +128,7 @@ export default function IntelligenceMap({
                           : "block"
                       }
                     >
-                      <PumpShapeIcon pumpType={row.pump} filled={false} size={14} />
+                      <PumpShapeIcon pumpType={marker.pump} filled={marker.kind === "producer"} size={14} />
                     </span>
                   </button>
                 );
@@ -104,6 +154,14 @@ export default function IntelligenceMap({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <Square color="#94A3B8" filled size={12} />
+          Manufacturer
+        </div>
+        <div className="flex items-center gap-2">
+          <Square color="#94A3B8" filled={false} size={12} />
+          Dealer
+        </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-800 text-[8px] ring-1 ring-slate-600">
             +N

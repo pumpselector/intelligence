@@ -35,13 +35,22 @@ function Row({ children }: { children: React.ReactNode }) {
   );
 }
 
+function Field({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <span className="text-xs text-slate-500">{label}</span>
+      <p className="text-slate-200">{hasValue(value) ? value : "—"}</p>
+    </div>
+  );
+}
+
 export default function IntelligenceDetailPanel({ selection, dealers }: IntelligenceDetailPanelProps) {
   const content = useMemo(() => {
     switch (selection.kind) {
       case "pump": {
         const rows = dealers.filter((d) => d.pump === selection.value);
-        const producers = [...new Set(rows.map((r) => r.satici))].sort();
-        const dealerList = [...new Set(rows.map((r) => r.bayi_adi))].sort();
+        const producers = [...new Set(rows.map((r) => r.uretici).filter(hasValue))].sort();
+        const dealerList = [...new Set(rows.map((r) => r.bayi_adi).filter(hasValue))].sort();
         return (
           <Panel title={`Pump — ${selection.value}`}>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -73,11 +82,18 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
       }
 
       case "producer": {
-        const rows = dealers.filter((d) => d.satici === selection.value);
-        const pumps = [...new Set(rows.map((r) => r.pump))].sort();
-        const countries = [...new Set(rows.map((r) => r.ulke))].sort();
+        const rows = dealers.filter((d) => d.uretici === selection.value);
+        const pumps = [...new Set(rows.map((r) => r.pump).filter(hasValue))].sort();
+        const countries = [...new Set(rows.map((r) => r.bayi_ulke).filter(hasValue))].sort();
+        const headquarters = rows.find((r) => hasValue(r.uretici_ulke) || hasValue(r.uretici_adres));
         return (
           <Panel title={`Manufacturer — ${selection.value}`}>
+            {headquarters && (hasValue(headquarters.uretici_ulke) || hasValue(headquarters.uretici_adres)) && (
+              <p className="mb-4 text-sm text-slate-400">
+                Headquartered in {hasValue(headquarters.uretici_ulke) ? headquarters.uretici_ulke : "—"}
+                {hasValue(headquarters.uretici_adres) ? ` · ${headquarters.uretici_adres}` : ""}
+              </p>
+            )}
             <div className="mb-4">
               <p className="mb-2 text-xs font-medium text-slate-500">Pumps produced</p>
               <div className="flex flex-wrap gap-2">
@@ -100,12 +116,14 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
                 <div className="max-h-64 overflow-auto pr-1">
                   {rows
                     .slice()
-                    .sort((a, b) => a.bayi_adi.localeCompare(b.bayi_adi))
+                    .sort((a, b) => (a.bayi_adi ?? "").localeCompare(b.bayi_adi ?? ""))
                     .map((r) => (
                       <Row key={r.id}>
-                        <PumpShapeIcon pumpType={r.pump} filled={false} size={13} />
-                        <span className="truncate">{r.bayi_adi}</span>
-                        <span className="ml-auto shrink-0 text-xs text-slate-500">{r.ulke}</span>
+                        {hasValue(r.pump) && <PumpShapeIcon pumpType={r.pump} filled={false} size={13} />}
+                        <span className="truncate">{hasValue(r.bayi_adi) ? r.bayi_adi : "—"}</span>
+                        <span className="ml-auto shrink-0 text-xs text-slate-500">
+                          {hasValue(r.bayi_ulke) ? r.bayi_ulke : "—"}
+                        </span>
                       </Row>
                     ))}
                 </div>
@@ -124,20 +142,20 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
       }
 
       case "country": {
-        const rows = dealers.filter((d) => d.ulke === selection.value);
+        const rows = dealers.filter((d) => d.bayi_ulke === selection.value);
         return (
           <Panel title={`Country — ${selection.value}`}>
             <p className="mb-2 text-xs font-medium text-slate-500">Dealers ({rows.length})</p>
             <div className="max-h-72 overflow-auto pr-1">
               {rows
                 .slice()
-                .sort((a, b) => a.bayi_adi.localeCompare(b.bayi_adi))
+                .sort((a, b) => (a.bayi_adi ?? "").localeCompare(b.bayi_adi ?? ""))
                 .map((r) => (
                   <Row key={r.id}>
-                    <PumpShapeIcon pumpType={r.pump} filled={false} size={13} />
-                    <span className="truncate">{r.bayi_adi}</span>
+                    {hasValue(r.pump) && <PumpShapeIcon pumpType={r.pump} filled={false} size={13} />}
+                    <span className="truncate">{hasValue(r.bayi_adi) ? r.bayi_adi : "—"}</span>
                     <span className="ml-auto shrink-0 text-xs text-slate-500">
-                      {r.satici} · {r.pump}
+                      {hasValue(r.uretici) ? r.uretici : "—"} · {hasValue(r.pump) ? r.pump : "—"}
                     </span>
                   </Row>
                 ))}
@@ -154,11 +172,13 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
             <div className="max-h-72 overflow-auto pr-1">
               {rows.map((r) => (
                 <Row key={r.id}>
-                  <PumpShapeIcon pumpType={r.pump} filled={false} size={13} />
+                  {hasValue(r.pump) && <PumpShapeIcon pumpType={r.pump} filled={false} size={13} />}
                   <span className="truncate">
-                    {r.pump} — {r.satici}
+                    {hasValue(r.pump) ? r.pump : "—"} — {hasValue(r.uretici) ? r.uretici : "—"}
                   </span>
-                  <span className="ml-auto shrink-0 text-xs text-slate-500">{r.ulke}</span>
+                  <span className="ml-auto shrink-0 text-xs text-slate-500">
+                    {hasValue(r.bayi_ulke) ? r.bayi_ulke : "—"}
+                  </span>
                 </Row>
               ))}
             </div>
@@ -172,31 +192,24 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
         return (
           <Panel title={`Dealer record — #${row.id}`}>
             <div className="mb-4 flex items-center gap-3">
-              <PumpShapeIcon pumpType={row.pump} filled={false} size={22} />
+              {hasValue(row.pump) && <PumpShapeIcon pumpType={row.pump} filled={false} size={22} />}
               <div>
-                <p className="text-base font-semibold text-slate-100">{row.bayi_adi}</p>
+                <p className="text-base font-semibold text-slate-100">
+                  {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+                </p>
                 <p className="text-xs text-slate-500">
-                  {row.pump} · {row.satici} · {row.ulke}
+                  {hasValue(row.pump) ? row.pump : "—"} · {hasValue(row.uretici) ? row.uretici : "—"} ·{" "}
+                  {hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-              <div>
-                <span className="text-xs text-slate-500">Address</span>
-                <p className="text-slate-200">{hasValue(row.adres) ? row.adres : "—"}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500">Phone</span>
-                <p className="text-slate-200">{hasValue(row.telefon) ? row.telefon : "—"}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500">Email</span>
-                <p className="text-slate-200">{hasValue(row.email) ? row.email : "—"}</p>
-              </div>
-              <div>
-                <span className="text-xs text-slate-500">Website</span>
-                <p className="text-slate-200">{hasValue(row.web) ? row.web : "—"}</p>
-              </div>
+              <Field label="Dealer address" value={row.bayi_adres} />
+              <Field label="Dealer phone" value={row.bayi_telefon} />
+              <Field label="Dealer email" value={row.bayi_email} />
+              <Field label="Dealer website" value={row.bayi_web} />
+              <Field label="Manufacturer country" value={row.uretici_ulke} />
+              <Field label="Manufacturer address" value={row.uretici_adres} />
             </div>
           </Panel>
         );

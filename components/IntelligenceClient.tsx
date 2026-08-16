@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Dealer } from "@/lib/dealers";
+import { Dealer, hasValue } from "@/lib/dealers";
 import { Selection } from "@/lib/selection";
 import { PumpShapeIcon } from "@/components/shapes";
 import Dropdown, { DropdownOption } from "@/components/ui/Dropdown";
@@ -16,19 +16,19 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
   const [selection, setSelection] = useState<Selection>({ kind: "none" });
 
   const pumpTypes = useMemo(
-    () => [...new Set(dealers.map((d) => d.pump))].sort(),
+    () => [...new Set(dealers.map((d) => d.pump).filter(hasValue))].sort(),
     [dealers]
   );
   const producers = useMemo(
-    () => [...new Set(dealers.map((d) => d.satici))].sort(),
+    () => [...new Set(dealers.map((d) => d.uretici).filter(hasValue))].sort(),
     [dealers]
   );
   const countries = useMemo(
-    () => [...new Set(dealers.map((d) => d.ulke))].sort(),
+    () => [...new Set(dealers.map((d) => d.bayi_ulke).filter(hasValue))].sort(),
     [dealers]
   );
   const dealerNames = useMemo(
-    () => [...new Set(dealers.map((d) => d.bayi_adi))].sort(),
+    () => [...new Set(dealers.map((d) => d.bayi_adi).filter(hasValue))].sort(),
     [dealers]
   );
 
@@ -45,7 +45,9 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
   const producerOptions: DropdownOption[] = useMemo(
     () =>
       producers.map((producer) => {
-        const pumps = [...new Set(dealers.filter((d) => d.satici === producer).map((d) => d.pump))];
+        const pumps = [
+          ...new Set(dealers.filter((d) => d.uretici === producer).map((d) => d.pump).filter(hasValue)),
+        ];
         return {
           value: producer,
           label: producer,
@@ -63,7 +65,9 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
   const dealerOptions: DropdownOption[] = useMemo(
     () =>
       dealerNames.map((name) => {
-        const pumps = [...new Set(dealers.filter((d) => d.bayi_adi === name).map((d) => d.pump))];
+        const pumps = [
+          ...new Set(dealers.filter((d) => d.bayi_adi === name).map((d) => d.pump).filter(hasValue)),
+        ];
         return {
           value: name,
           label: name,
@@ -78,9 +82,9 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
       case "pump":
         return dealers.filter((d) => d.pump === selection.value);
       case "producer":
-        return dealers.filter((d) => d.satici === selection.value);
+        return dealers.filter((d) => d.uretici === selection.value);
       case "country":
-        return dealers.filter((d) => d.ulke === selection.value);
+        return dealers.filter((d) => d.bayi_ulke === selection.value);
       case "dealer":
         return dealers.filter((d) => d.bayi_adi === selection.value);
       default:
@@ -89,6 +93,7 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
   }, [dealers, selection]);
 
   const selectedRecordId = selection.kind === "record" ? selection.id : null;
+  const selectedProducer = selection.kind === "producer" ? selection.value : null;
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 lg:px-8">
@@ -135,7 +140,9 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
           dealers={visibleDealers}
           allPumpTypes={pumpTypes}
           selectedId={selectedRecordId}
-          onMarkerClick={(id) => setSelection({ kind: "record", id })}
+          selectedProducer={selectedProducer}
+          onDealerClick={(id) => setSelection({ kind: "record", id })}
+          onProducerClick={(name) => setSelection({ kind: "producer", value: name })}
           onOverflowClick={(country) => setSelection({ kind: "country", value: country })}
         />
 

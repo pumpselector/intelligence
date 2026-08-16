@@ -3,14 +3,16 @@ import { supabase } from "@/lib/supabase";
 export type Dealer = {
   id: number;
   created_at: string;
-  satici: string;
-  bayi_adi: string;
-  ulke: string;
-  adres: string | null;
-  telefon: string | null;
-  email: string | null;
-  web: string | null;
-  pump: string;
+  uretici: string | null;
+  bayi_adi: string | null;
+  bayi_ulke: string | null;
+  bayi_adres: string | null;
+  bayi_telefon: string | null;
+  bayi_email: string | null;
+  bayi_web: string | null;
+  pump: string | null;
+  uretici_adres: string | null;
+  uretici_ulke: string | null;
 };
 
 const PAGE_SIZE = 1000;
@@ -22,7 +24,9 @@ export async function getAllDealers(): Promise<Dealer[]> {
   while (true) {
     const { data, error } = await supabase
       .from("dealers")
-      .select("id,created_at,satici,bayi_adi,ulke,adres,telefon,email,web,pump")
+      .select(
+        "id,created_at,uretici,bayi_adi,bayi_ulke,bayi_adres,bayi_telefon,bayi_email,bayi_web,pump,uretici_adres,uretici_ulke"
+      )
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
 
