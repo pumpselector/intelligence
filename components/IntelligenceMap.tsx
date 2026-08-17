@@ -1,10 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ComposableMap, Geographies, Geography, Marker, Line, ZoomableGroup, useMapContext } from "react-simple-maps";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Marker,
+  Line,
+  ZoomableGroup,
+  useMapContext,
+  useZoomPanContext,
+} from "react-simple-maps";
 import type { GeoProjection } from "d3-geo";
 import { Dealer, hasValue } from "@/lib/dealers";
 import { Selection, TopSelection } from "@/lib/selection";
+import { filterDealersByTop } from "@/lib/selectionFilter";
 import { getProducerColor } from "@/lib/producerColor";
 import Hexagon from "@/components/shapes/Hexagon";
 import Circle from "@/components/shapes/Circle";
@@ -90,6 +100,36 @@ function FitBounds({ points, onChange }: { points: [number, number][]; onChange:
   return null;
 }
 
+/**
+ * Counter-scales an inner group by 1/zoom so markers stay a fixed screen size
+ * as ZoomableGroup zooms (like Google Maps pins), and (optionally) grows
+ * slightly on hover. This transform lives on an inner <g> that carries no
+ * other transform — never on the <Marker>'s own <g>, which already owns the
+ * position-critical translate(x,y) attribute. Mixing a CSS `transform`
+ * (e.g. Tailwind's hover:scale-*) onto that element makes the CSS property
+ * win over the attribute per spec, so the marker snaps to the wrong position
+ * on hover. Using a plain `transform` attribute here (not a CSS property)
+ * avoids that conflict entirely, and `transition-transform` still animates
+ * attribute-driven transform changes smoothly.
+ */
+function ZoomStableGroup({
+  hovered,
+  hoverScale = 1,
+  children,
+}: {
+  hovered: boolean;
+  hoverScale?: number;
+  children: React.ReactNode;
+}) {
+  const { k } = useZoomPanContext();
+  const scale = (1 / k) * (hovered ? hoverScale : 1);
+  return (
+    <g transform={`scale(${scale})`} className="transition-transform duration-150 ease-out">
+      {children}
+    </g>
+  );
+}
+
 function ClusterMarker({
   coordinates,
   count,
@@ -113,31 +153,78 @@ function ClusterMarker({
       }}
     >
       <title>{`${count} dealers here — click to zoom in`}</title>
-      <circle r={9} fill="#1e293b" stroke="#ffffff" strokeWidth={1.5} />
-      <text textAnchor="middle" dominantBaseline="central" style={{ fontSize: 9, fontWeight: 700, fill: "#ffffff" }}>
-        {count}
-      </text>
+      <ZoomStableGroup hovered={false}>
+        <circle r={8} fill="#1e293b" stroke="#ffffff" strokeWidth={1.3} />
+        <text textAnchor="middle" dominantBaseline="central" style={{ fontSize: 8, fontWeight: 700, fill: "#ffffff" }}>
+          {count}
+        </text>
+      </ZoomStableGroup>
     </Marker>
   );
 }
 
+const DEALER_PIN_RADIUS = 3.2;
+
 function DealerPinMarker({ row, isSelected, onClick }: { row: Dealer; isSelected: boolean; onClick: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  const point = useMemo(() => jitteredDealerPoint(row), [row.id, row.bayi_lat, row.bayi_lng]);
+
   return (
     <Marker
-      coordinates={jitteredDealerPoint(row)}
+      coordinates={point}
       onClick={onClick}
-      className="cursor-pointer transition-transform hover:scale-150"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="cursor-pointer"
     >
       <title>{`${hasValue(row.bayi_adi) ? row.bayi_adi : "Dealer"} · ${hasValue(row.uretici) ? row.uretici : "?"} · ${
         row.bayi_ulke ?? ""
       }`}</title>
-      <circle
-        r={5}
-        fill={hasValue(row.uretici) ? getProducerColor(row.uretici) : "#64748b"}
-        stroke="#ffffff"
-        strokeWidth={1.5}
-        className={isSelected ? "drop-shadow-[0_0_0_2px_rgba(37,99,235,0.9)]" : undefined}
-      />
+      <ZoomStableGroup hovered={hovered} hoverScale={1.5}>
+        <circle
+          r={DEALER_PIN_RADIUS}
+          fill={hasValue(row.uretici) ? getProducerColor(row.uretici) : "#64748b"}
+          stroke="#ffffff"
+          strokeWidth={1.1}
+          className={isSelected ? "drop-shadow-[0_0_0_2px_rgba(37,99,235,0.9)]" : undefined}
+        />
+      </ZoomStableGroup>
+    </Marker>
+  );
+}
+
+const PRODUCER_ICON_SIZE = 10;
+
+function ProducerMarker({
+  point,
+  isSelected,
+  isFaded,
+  onClick,
+}: {
+  point: ProducerPoint;
+  isSelected: boolean;
+  isFaded: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Marker
+      coordinates={[point.lng, point.lat]}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`cursor-pointer transition-opacity ${isFaded && !hovered ? "opacity-35" : "opacity-100"}`}
+    >
+      <title>{`${point.name} · manufacturer · ${point.country}`}</title>
+      <ZoomStableGroup hovered={hovered} hoverScale={1.35}>
+        <g
+          className={isSelected ? "drop-shadow-[0_0_0_2px_rgba(37,99,235,0.9)]" : undefined}
+          transform={`translate(${-PRODUCER_ICON_SIZE / 2}, ${-PRODUCER_ICON_SIZE / 2})`}
+        >
+          <Hexagon color={getProducerColor(point.name)} filled size={PRODUCER_ICON_SIZE} />
+        </g>
+      </ZoomStableGroup>
     </Marker>
   );
 }
@@ -165,19 +252,16 @@ function collectProducers(dealers: Dealer[]): ProducerPoint[] {
 
 /** Progressive-disclosure rule: which dealer rows + producers are on screen for the current top-level filter. */
 function computeVisible(dealers: Dealer[], top: TopSelection) {
+  const dealerRows = filterDealersByTop(dealers, top).filter((d) => hasCoords(d.bayi_lat, d.bayi_lng));
+
   switch (top.kind) {
     case "none":
-      return { dealerRows: [] as Dealer[], activeProducerNames: null as Set<string> | null, connectorIds: new Set<number>() };
+      return { dealerRows, activeProducerNames: null as Set<string> | null, connectorIds: new Set<number>() };
 
     case "producer":
-      return {
-        dealerRows: dealers.filter((d) => d.uretici === top.value && hasCoords(d.bayi_lat, d.bayi_lng)),
-        activeProducerNames: new Set([top.value]),
-        connectorIds: new Set<number>(),
-      };
+      return { dealerRows, activeProducerNames: new Set([top.value]), connectorIds: new Set<number>() };
 
     case "country": {
-      const dealerRows = dealers.filter((d) => d.bayi_ulke === top.value && hasCoords(d.bayi_lat, d.bayi_lng));
       const names = new Set<string>();
       for (const r of dealerRows) if (hasValue(r.uretici)) names.add(r.uretici);
       for (const d of dealers) if (d.uretici_ulke === top.value && hasValue(d.uretici)) names.add(d.uretici);
@@ -185,14 +269,12 @@ function computeVisible(dealers: Dealer[], top: TopSelection) {
     }
 
     case "pump": {
-      const dealerRows = dealers.filter((d) => d.pump === top.value && hasCoords(d.bayi_lat, d.bayi_lng));
       const names = new Set<string>();
       for (const r of dealerRows) if (hasValue(r.uretici)) names.add(r.uretici);
       return { dealerRows, activeProducerNames: names, connectorIds: new Set<number>() };
     }
 
     case "dealer": {
-      const dealerRows = dealers.filter((d) => d.bayi_adi === top.value && hasCoords(d.bayi_lat, d.bayi_lng));
       const names = new Set<string>();
       for (const r of dealerRows) if (hasValue(r.uretici)) names.add(r.uretici);
       return { dealerRows, activeProducerNames: names, connectorIds: new Set(dealerRows.map((r) => r.id)) };
@@ -347,26 +429,15 @@ export default function IntelligenceMap({
 
               {visibleProducers
                 .filter((p) => p.visibility !== "hidden")
-                .map((p) => {
-                  const isSelected = selection.top.kind === "producer" && selection.top.value === p.name;
-                  const isFaded = p.visibility === "faded";
-                  return (
-                    <Marker
-                      key={`producer-${p.name}`}
-                      coordinates={[p.lng, p.lat]}
-                      onClick={() => onProducerClick(p.name)}
-                      className={`cursor-pointer transition-opacity hover:opacity-100 ${isFaded ? "opacity-35" : "opacity-100"}`}
-                    >
-                      <title>{`${p.name} · manufacturer · ${p.country}`}</title>
-                      <g
-                        className={isSelected ? "drop-shadow-[0_0_0_2px_rgba(37,99,235,0.9)]" : undefined}
-                        transform="translate(-8, -8)"
-                      >
-                        <Hexagon color={getProducerColor(p.name)} filled size={16} />
-                      </g>
-                    </Marker>
-                  );
-                })}
+                .map((p) => (
+                  <ProducerMarker
+                    key={`producer-${p.name}`}
+                    point={p}
+                    isSelected={selection.top.kind === "producer" && selection.top.value === p.name}
+                    isFaded={p.visibility === "faded"}
+                    onClick={() => onProducerClick(p.name)}
+                  />
+                ))}
 
               {dealerGroups.map(([country, rows]) => {
                 const singledOut = recordRow && rows.some((r) => r.id === recordRow.id) ? recordRow : null;

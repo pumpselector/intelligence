@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dealer, hasValue } from "@/lib/dealers";
 import { Selection } from "@/lib/selection";
 import { getProducerColor } from "@/lib/producerColor";
@@ -37,25 +37,6 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
       <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">{title}</h3>
       {children}
     </div>
-  );
-}
-
-function DealerCard({ row, onClick }: { row: Dealer; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-2.5 border-b border-slate-200 py-2.5 text-left text-sm text-slate-800 last:border-0 hover:bg-slate-100"
-    >
-      {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
-      <span className="min-w-0 flex-1 truncate">{hasValue(row.bayi_adi) ? row.bayi_adi : "—"}</span>
-      {hasValue(row.pump) && (
-        <span className="shrink-0 rounded-full border border-slate-300 px-2 py-0.5 text-[10px] text-slate-600">
-          {row.pump}
-        </span>
-      )}
-      <span className="shrink-0 text-xs text-slate-500">{hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}</span>
-    </button>
   );
 }
 
@@ -102,6 +83,150 @@ function Breadcrumb({
   );
 }
 
+/** Quick-peek popover with full dealer contact details — does not change navigation/breadcrumb state. */
+function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void }) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
+            <div>
+              <p className="text-base font-semibold text-slate-900">
+                {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+              </p>
+              <p className="text-xs text-slate-500">
+                {hasValue(row.uretici) ? row.uretici : "—"} · {hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 text-sm">
+          <Field label="Pump type" value={row.pump} />
+          <Field label="Dealer address" value={row.bayi_adres} />
+          <Field label="Dealer phone" value={row.bayi_telefon} />
+          <Field label="Dealer email" value={row.bayi_email} />
+          <Field label="Dealer website" value={row.bayi_web} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Row: manufacturer (+ country underneath) on the left, dealer name + "i"
+ * detail button on the right. Clicking the row drills into the full record
+ * breadcrumb view; clicking the manufacturer name pivots the top-level
+ * filter instead; the "i" button opens a lightweight detail popover without
+ * changing navigation.
+ */
+function DealerRow({
+  row,
+  otherProducers,
+  onSelectProducer,
+  onSelectRecord,
+  onOpenDetail,
+}: {
+  row: Dealer;
+  otherProducers: string[];
+  onSelectProducer: (name: string) => void;
+  onSelectRecord: (id: number) => void;
+  onOpenDetail: () => void;
+}) {
+  const [showOthers, setShowOthers] = useState(false);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelectRecord(row.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelectRecord(row.id);
+      }}
+      className="flex w-full cursor-pointer items-center gap-3 border-b border-slate-200 py-2.5 last:border-0 hover:bg-slate-100"
+    >
+      <div className="min-w-0 flex-1">
+        {hasValue(row.uretici) ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectProducer(row.uretici!);
+            }}
+            className="flex min-w-0 items-center gap-2 text-left hover:underline"
+          >
+            <ProducerDot producer={row.uretici} />
+            <span className="truncate text-sm font-medium text-slate-800">{row.uretici}</span>
+          </button>
+        ) : (
+          <span className="text-sm text-slate-500">—</span>
+        )}
+        <p className="mt-0.5 pl-4 text-xs text-slate-500">{hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}</p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <span className="max-w-[9rem] truncate text-right text-sm text-slate-800">
+          {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+        </span>
+
+        {otherProducers.length > 0 && (
+          <div className="relative" onMouseLeave={() => setShowOthers(false)}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowOthers((v) => !v);
+              }}
+              onMouseEnter={() => setShowOthers(true)}
+              className="whitespace-nowrap rounded-full border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-600 hover:bg-slate-100"
+            >
+              +{otherProducers.length} diğer üretici
+            </button>
+            {showOthers && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-full z-20 mt-1 w-52 rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-700 shadow-lg"
+              >
+                {otherProducers.join(", ")}
+              </div>
+            )}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenDetail();
+          }}
+          title="Detayları göster"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[10px] font-semibold italic text-slate-600 hover:bg-slate-100"
+        >
+          i
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function IntelligenceDetailPanel({
   selection,
   dealers,
@@ -111,10 +236,53 @@ export default function IntelligenceDetailPanel({
   onReset,
 }: IntelligenceDetailPanelProps) {
   const { top, recordId } = selection;
+  const [detailRowId, setDetailRowId] = useState<number | null>(null);
 
   const recordRow = useMemo(
     () => (recordId != null ? dealers.find((d) => d.id === recordId) ?? null : null),
     [dealers, recordId]
+  );
+
+  const detailRow = useMemo(
+    () => (detailRowId != null ? dealers.find((d) => d.id === detailRowId) ?? null : null),
+    [dealers, detailRowId]
+  );
+
+  /** Which other manufacturers each dealer name also sells for, across the full (unfiltered) dataset. */
+  const producersByDealerName = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const d of dealers) {
+      if (!hasValue(d.bayi_adi) || !hasValue(d.uretici)) continue;
+      let set = map.get(d.bayi_adi);
+      if (!set) {
+        set = new Set();
+        map.set(d.bayi_adi, set);
+      }
+      set.add(d.uretici);
+    }
+    return map;
+  }, [dealers]);
+
+  const otherProducersFor = (row: Dealer): string[] => {
+    if (!hasValue(row.bayi_adi) || !hasValue(row.uretici)) return [];
+    const all = producersByDealerName.get(row.bayi_adi);
+    if (!all) return [];
+    return [...all].filter((p) => p !== row.uretici);
+  };
+
+  const renderDealerRows = (rows: Dealer[]) => (
+    <>
+      {rows.map((r) => (
+        <DealerRow
+          key={r.id}
+          row={r}
+          otherProducers={otherProducersFor(r)}
+          onSelectProducer={onSelectProducer}
+          onSelectRecord={onSelectRecord}
+          onOpenDetail={() => setDetailRowId(r.id)}
+        />
+      ))}
+    </>
   );
 
   const topLabel = top.kind === "none" ? null : top.value;
@@ -167,30 +335,24 @@ export default function IntelligenceDetailPanel({
         const producers = [...new Set(rows.map((r) => r.uretici).filter(hasValue))].sort();
         return (
           <Panel title={`Pump — ${top.value}`}>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">Manufacturers ({producers.length})</p>
+            <div className="mb-4">
+              <p className="mb-2 text-xs font-medium text-slate-500">Manufacturers ({producers.length})</p>
+              <div className="flex flex-wrap gap-2">
                 {producers.map((p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => onSelectProducer(p)}
-                    className="flex w-full items-center gap-2.5 border-b border-slate-200 py-2 text-left text-sm text-slate-800 last:border-0 hover:bg-slate-100"
+                    className="flex items-center gap-1.5 rounded-full border border-slate-300 px-2.5 py-1 text-xs text-slate-800 hover:bg-slate-100"
                   >
                     <ProducerDot producer={p} />
                     {p}
                   </button>
                 ))}
               </div>
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">Dealers ({rows.length})</p>
-                <div className="max-h-64 overflow-auto pr-1">
-                  {rows.map((r) => (
-                    <DealerCard key={r.id} row={r} onClick={() => onSelectRecord(r.id)} />
-                  ))}
-                </div>
-              </div>
             </div>
+            <p className="mb-1 text-xs font-medium text-slate-500">Dealers ({rows.length})</p>
+            <div className="max-h-96 overflow-auto pr-1">{renderDealerRows(rows)}</div>
           </Panel>
         );
       }
@@ -223,30 +385,11 @@ export default function IntelligenceDetailPanel({
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">
-                  Dealers ({rows.length}) across {countries.length} countries
-                </p>
-                <div className="max-h-64 overflow-auto pr-1">
-                  {rows
-                    .slice()
-                    .sort((a, b) => (a.bayi_adi ?? "").localeCompare(b.bayi_adi ?? ""))
-                    .map((r) => (
-                      <DealerCard key={r.id} row={r} onClick={() => onSelectRecord(r.id)} />
-                    ))}
-                </div>
-              </div>
-              <div>
-                <p className="mb-2 text-xs font-medium text-slate-500">Countries ({countries.length})</p>
-                <div className="max-h-64 overflow-auto pr-1 text-sm text-slate-700">
-                  {countries.map((c) => (
-                    <div key={c} className="border-b border-slate-200 py-2 last:border-0">
-                      {c}
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <p className="mb-1 text-xs font-medium text-slate-500">
+              Dealers ({rows.length}) across {countries.length} countries
+            </p>
+            <div className="max-h-96 overflow-auto pr-1">
+              {renderDealerRows(rows.slice().sort((a, b) => (a.bayi_adi ?? "").localeCompare(b.bayi_adi ?? "")))}
             </div>
           </Panel>
         );
@@ -256,14 +399,9 @@ export default function IntelligenceDetailPanel({
         const rows = dealers.filter((d) => d.bayi_ulke === top.value);
         return (
           <Panel title={`Country — ${top.value}`}>
-            <p className="mb-2 text-xs font-medium text-slate-500">Dealers ({rows.length})</p>
+            <p className="mb-1 text-xs font-medium text-slate-500">Dealers ({rows.length})</p>
             <div className="max-h-96 overflow-auto pr-1">
-              {rows
-                .slice()
-                .sort((a, b) => (a.bayi_adi ?? "").localeCompare(b.bayi_adi ?? ""))
-                .map((r) => (
-                  <DealerCard key={r.id} row={r} onClick={() => onSelectRecord(r.id)} />
-                ))}
+              {renderDealerRows(rows.slice().sort((a, b) => (a.bayi_adi ?? "").localeCompare(b.bayi_adi ?? "")))}
             </div>
           </Panel>
         );
@@ -273,12 +411,8 @@ export default function IntelligenceDetailPanel({
         const rows = dealers.filter((d) => d.bayi_adi === top.value);
         return (
           <Panel title={`Dealer — ${top.value}`}>
-            <p className="mb-2 text-xs font-medium text-slate-500">Sells ({rows.length})</p>
-            <div className="max-h-96 overflow-auto pr-1">
-              {rows.map((r) => (
-                <DealerCard key={r.id} row={r} onClick={() => onSelectRecord(r.id)} />
-              ))}
-            </div>
+            <p className="mb-1 text-xs font-medium text-slate-500">Sells ({rows.length})</p>
+            <div className="max-h-96 overflow-auto pr-1">{renderDealerRows(rows)}</div>
           </Panel>
         );
       }
@@ -287,12 +421,14 @@ export default function IntelligenceDetailPanel({
       default:
         return <Empty>Bir üretici veya ülke seçerek başlayın.</Empty>;
     }
-  }, [top, recordRow, dealers, onSelectRecord, onSelectProducer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [top, recordRow, dealers, onSelectRecord, onSelectProducer, producersByDealerName]);
 
   return (
     <div>
       {showBreadcrumb && <Breadcrumb items={breadcrumbItems} onNavigate={onBack} />}
       {body}
+      {detailRow && <DealerDetailModal row={detailRow} onClose={() => setDetailRowId(null)} />}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { getProducerColor } from "@/lib/producerColor";
 import Dropdown, { DropdownOption } from "@/components/ui/Dropdown";
 import IntelligenceMap from "@/components/IntelligenceMap";
 import IntelligenceDetailPanel from "@/components/IntelligenceDetailPanel";
+import IntelligenceSankey from "@/components/IntelligenceSankey";
 
 type IntelligenceClientProps = {
   dealers: Dealer[];
@@ -15,9 +16,16 @@ type IntelligenceClientProps = {
 export default function IntelligenceClient({ dealers }: IntelligenceClientProps) {
   const [selection, setSelection] = useState<Selection>(EMPTY_SELECTION);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [panelView, setPanelView] = useState<"list" | "sankey">("list");
 
   const selectTop = (top: TopSelection) => setSelection({ top, recordId: null });
   const selectRecord = (id: number) => setSelection((prev) => ({ top: prev.top, recordId: id }));
+
+  const hasActiveFilter = selection.top.kind !== "none";
+
+  useEffect(() => {
+    if (!hasActiveFilter) setPanelView("list");
+  }, [hasActiveFilter]);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -161,16 +169,43 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
               />
             </div>
 
-            <IntelligenceDetailPanel
-              selection={selection}
-              dealers={dealers}
-              onSelectRecord={selectRecord}
-              onSelectProducer={(name) => selectTop({ kind: "producer", value: name })}
-              onBack={() =>
-                setSelection((prev) => (prev.recordId != null ? { top: prev.top, recordId: null } : EMPTY_SELECTION))
-              }
-              onReset={() => setSelection(EMPTY_SELECTION)}
-            />
+            {hasActiveFilter && (
+              <div className="flex gap-1.5 border-b border-slate-200 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setPanelView("list")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                    panelView === "list" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  List
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanelView("sankey")}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                    panelView === "sankey" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  Flow
+                </button>
+              </div>
+            )}
+
+            {hasActiveFilter && panelView === "sankey" ? (
+              <IntelligenceSankey dealers={dealers} selection={selection} />
+            ) : (
+              <IntelligenceDetailPanel
+                selection={selection}
+                dealers={dealers}
+                onSelectRecord={selectRecord}
+                onSelectProducer={(name) => selectTop({ kind: "producer", value: name })}
+                onBack={() =>
+                  setSelection((prev) => (prev.recordId != null ? { top: prev.top, recordId: null } : EMPTY_SELECTION))
+                }
+                onReset={() => setSelection(EMPTY_SELECTION)}
+              />
+            )}
           </div>
         </div>
       </div>
