@@ -42,11 +42,11 @@ export default function Dropdown({ label, placeholder, options, value, onChange 
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 py-2.5 text-left text-sm text-slate-100 transition-colors hover:border-slate-500"
+        className="flex w-full items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-3 py-2.5 text-left text-sm text-slate-900 transition-colors hover:border-slate-400"
       >
         <span className="flex min-w-0 items-center gap-2">
           {selected?.prefix}
-          <span className={`truncate ${selected ? "text-slate-100" : "text-slate-500"}`}>
+          <span className={`truncate ${selected ? "text-slate-900" : "text-slate-500"}`}>
             {selected ? selected.label : placeholder}
           </span>
           {selected?.suffix && selected.suffix.length > 0 && (
@@ -63,7 +63,7 @@ export default function Dropdown({ label, placeholder, options, value, onChange 
       </button>
 
       {open && (
-        <ul className="absolute z-20 mt-1.5 max-h-72 w-full overflow-auto rounded-md border border-slate-700 bg-slate-900 py-1 shadow-xl shadow-black/40">
+        <ul className="absolute z-20 mt-1.5 max-h-72 w-full overflow-auto rounded-md border border-slate-300 bg-white py-1 shadow-xl shadow-slate-300/40">
           <li>
             <button
               type="button"
@@ -71,8 +71,8 @@ export default function Dropdown({ label, placeholder, options, value, onChange 
                 onChange(null);
                 setOpen(false);
               }}
-              className={`flex w-full items-center px-3 py-2 text-left text-sm text-slate-400 hover:bg-slate-800 ${
-                value === null ? "bg-slate-800/70" : ""
+              className={`flex w-full items-center px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-100 ${
+                value === null ? "bg-slate-100" : ""
               }`}
             >
               — All —
@@ -86,8 +86,8 @@ export default function Dropdown({ label, placeholder, options, value, onChange 
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-100 hover:bg-slate-800 ${
-                  value === option.value ? "bg-slate-800/70" : ""
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-900 hover:bg-slate-100 ${
+                  value === option.value ? "bg-slate-100" : ""
                 }`}
               >
                 {option.prefix}

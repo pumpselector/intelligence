@@ -64,6 +64,56 @@ function hasValue(value) {
   return trimmed !== "" && trimmed !== "." && trimmed !== "-";
 }
 
+/** Splits a comma-separated address into trimmed, non-empty parts. */
+function splitAddressParts(address) {
+  return address
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+/** Geocodes a country name, caching results so each country is only queried once. */
+async function geocodeCountry(country, cache) {
+  if (cache.has(country)) return cache.get(country);
+  const coords = await geocodeAddress(country);
+  cache.set(country, coords);
+  return coords;
+}
+
+/**
+ * Tries progressively looser variants of a dealer address until one resolves:
+ *   1. the full address as-is
+ *   2. the address with its first (usually street/unit-level) part dropped
+ *   3. just the last address part + the country
+ *   4. the country alone, as a last-resort fallback
+ * Returns { coords, attempt } where attempt is 1-4, or { coords: null, attempt: null }.
+ */
+async function geocodeBayiAddress(address, country, countryCache) {
+  const coords1 = await geocodeAddress(address);
+  if (coords1) return { coords: coords1, attempt: 1 };
+
+  const parts = splitAddressParts(address);
+
+  if (parts.length > 1) {
+    const attempt2Address = parts.slice(1).join(", ");
+    const coords2 = await geocodeAddress(attempt2Address);
+    if (coords2) return { coords: coords2, attempt: 2 };
+  }
+
+  if (hasValue(country) && parts.length > 0) {
+    const attempt3Address = `${parts[parts.length - 1]}, ${country}`;
+    const coords3 = await geocodeAddress(attempt3Address);
+    if (coords3) return { coords: coords3, attempt: 3 };
+  }
+
+  if (hasValue(country)) {
+    const coords4 = await geocodeCountry(country, countryCache);
+    if (coords4) return { coords: coords4, attempt: 4 };
+  }
+
+  return { coords: null, attempt: null };
+}
+
 async function geocodeAddress(address) {
   const url = `${NOMINATIM_ENDPOINT}?format=json&limit=1&q=${encodeURIComponent(address)}`;
   let response;
@@ -108,7 +158,7 @@ async function fetchDealersNeedingGeocode() {
   while (true) {
     const { data, error } = await supabase
       .from("dealers")
-      .select("id,bayi_adres,uretici_adres,bayi_lat,bayi_lng,uretici_lat,uretici_lng")
+      .select("id,bayi_adi,bayi_adres,bayi_ulke,uretici_adres,bayi_lat,bayi_lng,uretici_lat,uretici_lng")
       .or("bayi_lat.is.null,bayi_lng.is.null,uretici_lat.is.null,uretici_lng.is.null")
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
@@ -144,8 +194,11 @@ async function main() {
 
   const unresolvedBayi = [];
   const unresolvedUretici = [];
+  const countryCoordsCache = new Map();
+  const bayiAttemptCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  const countryFallbackRows = [];
 
-  // --- Pass 1: dealer addresses — one geocode lookup per row ---
+  // --- Pass 1: dealer addresses — cascading attempts, one geocode lookup at a time ---
   console.log("== Bayi adresleri geocode ediliyor ==");
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -153,7 +206,12 @@ async function main() {
     if (row.bayi_lat == null || row.bayi_lng == null) {
       if (hasValue(row.bayi_adres)) {
         try {
-          const coords = await geocodeAddress(row.bayi_adres);
+          const { coords, attempt } = await geocodeBayiAddress(
+            row.bayi_adres,
+            row.bayi_ulke,
+            countryCoordsCache
+          );
+
           if (coords) {
             const { error } = await supabase
               .from("dealers")
@@ -162,6 +220,17 @@ async function main() {
             if (error) {
               console.warn(`  ! id=${row.id} guncellenemedi: ${error.message}`);
               unresolvedBayi.push({ id: row.id, adres: row.bayi_adres });
+            } else {
+              bayiAttemptCounts[attempt]++;
+              if (attempt === 4) {
+                countryFallbackRows.push({
+                  id: row.id,
+                  bayi_adi: row.bayi_adi,
+                  bayi_ulke: row.bayi_ulke,
+                });
+              }
+              console.log(`${i + 1}/${total} tamamlandi (Deneme ${attempt})`);
+              continue;
             }
           } else {
             unresolvedBayi.push({ id: row.id, adres: row.bayi_adres });
@@ -221,7 +290,20 @@ async function main() {
   }
 
   console.log("\n== Ozet ==");
-  console.log(`Bulunamayan bayi adresleri: ${unresolvedBayi.length}`);
+  console.log(
+    `Bayi adresleri: ${bayiAttemptCounts[1]} satir Deneme 1'de, ${bayiAttemptCounts[2]} satir Deneme 2'de, ` +
+      `${bayiAttemptCounts[3]} satir Deneme 3'te, ${bayiAttemptCounts[4]} satir ulke fallback'inde bulundu, ` +
+      `${unresolvedBayi.length} satir hic bulunamadi.`
+  );
+
+  if (countryFallbackRows.length > 0) {
+    console.log("\nULKE FALLBACK KULLANILDI:");
+    for (const r of countryFallbackRows) {
+      console.log(`  - id=${r.id}, bayi_adi=${hasValue(r.bayi_adi) ? r.bayi_adi : "?"}, bayi_ulke=${r.bayi_ulke}`);
+    }
+  }
+
+  console.log(`\nBulunamayan bayi adresleri: ${unresolvedBayi.length}`);
   for (const u of unresolvedBayi) {
     console.log(`  - id=${u.id}: ${u.adres}`);
   }

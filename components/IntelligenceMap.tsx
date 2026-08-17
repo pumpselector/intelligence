@@ -134,7 +134,7 @@ export default function IntelligenceMap({
 
   return (
     <div className="w-full">
-      <div className="w-full rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+      <div className="w-full rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
         <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-white">
           <ComposableMap
             projection="geoEqualEarth"
@@ -149,12 +149,12 @@ export default function IntelligenceMap({
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill="#f3f4f6"
-                    stroke="#d1d5db"
+                    fill="#e2e8f0"
+                    stroke="#94a3b8"
                     strokeWidth={0.5}
                     style={{
                       default: { outline: "none" },
-                      hover: { outline: "none", fill: "#e5e7eb" },
+                      hover: { outline: "none", fill: "#cbd5e1" },
                       pressed: { outline: "none" },
                     }}
                   />
@@ -226,13 +226,13 @@ export default function IntelligenceMap({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-600">
         <div className="flex items-center gap-2">
-          <Square color="#94A3B8" filled size={12} />
+          <Square color="#64748B" filled size={12} />
           Manufacturer
         </div>
         <div className="flex items-center gap-2">
-          <Square color="#94A3B8" filled={false} size={12} />
+          <Square color="#64748B" filled={false} size={12} />
           Dealer
         </div>
         <div className="flex items-center gap-2">

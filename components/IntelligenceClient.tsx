@@ -96,13 +96,13 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
   const selectedProducer = selection.kind === "producer" ? selection.value : null;
 
   return (
-    <div className="min-h-screen bg-slate-950 px-6 py-10 lg:px-8">
+    <div className="min-h-screen bg-white px-6 py-10 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8">
           <span className="text-xs font-medium uppercase tracking-widest text-slate-500">
             Pump Industry Intelligence
           </span>
-          <h1 className="mt-1 text-3xl font-bold text-white">Global Coverage Explorer</h1>
+          <h1 className="mt-1 text-3xl font-bold text-slate-900">Global Coverage Explorer</h1>
         </div>
 
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -58,7 +58,7 @@ function WarehouseIcon() {
 
 export default function PumpNetworkMap() {
   return (
-    <div className="relative w-full">
+    <div className="relative w-full rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
       <div className="relative aspect-[2/1] w-full">
         <Image
           src="/world-map.png"
@@ -85,8 +85,8 @@ export default function PumpNetworkMap() {
                 x2={to.left}
                 y2={to.top}
                 className="pump-network-line"
-                stroke="#38bdf8"
-                strokeOpacity="0.45"
+                stroke="#0ea5e9"
+                strokeOpacity="0.6"
                 strokeWidth="0.25"
                 vectorEffect="non-scaling-stroke"
               />
@@ -102,7 +102,7 @@ export default function PumpNetworkMap() {
             style={{ top: `${point.top}%`, left: `${point.left}%` }}
           >
             <div
-              className={`flex h-6 w-6 items-center justify-center rounded-full ring-2 ring-slate-950/60 shadow-lg ${
+              className={`flex h-6 w-6 items-center justify-center rounded-full ring-2 ring-white shadow-lg ${
                 point.type === "factory"
                   ? "bg-amber-400 text-slate-900"
                   : "bg-emerald-400 text-slate-900"
@@ -114,7 +114,7 @@ export default function PumpNetworkMap() {
         ))}
       </div>
 
-      <div className="mt-6 flex items-center justify-center gap-6 text-xs text-slate-400">
+      <div className="mt-6 flex items-center justify-center gap-6 text-xs text-slate-600">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
           Manufacturer

@@ -12,7 +12,7 @@ type IntelligenceDetailPanelProps = {
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-slate-700 text-sm text-slate-500">
+    <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-500">
       {children}
     </div>
   );
@@ -20,8 +20,8 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-5">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-400">{title}</h3>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">{title}</h3>
       {children}
     </div>
   );
@@ -29,7 +29,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Row({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 border-b border-slate-800/70 py-2 text-sm text-slate-200 last:border-0">
+    <div className="flex items-center gap-2.5 border-b border-slate-200 py-2 text-sm text-slate-800 last:border-0">
       {children}
     </div>
   );
@@ -39,7 +39,7 @@ function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
       <span className="text-xs text-slate-500">{label}</span>
-      <p className="text-slate-200">{hasValue(value) ? value : "—"}</p>
+      <p className="text-slate-800">{hasValue(value) ? value : "—"}</p>
     </div>
   );
 }
@@ -89,7 +89,7 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
         return (
           <Panel title={`Manufacturer — ${selection.value}`}>
             {headquarters && (hasValue(headquarters.uretici_ulke) || hasValue(headquarters.uretici_adres)) && (
-              <p className="mb-4 text-sm text-slate-400">
+              <p className="mb-4 text-sm text-slate-600">
                 Headquartered in {hasValue(headquarters.uretici_ulke) ? headquarters.uretici_ulke : "—"}
                 {hasValue(headquarters.uretici_adres) ? ` · ${headquarters.uretici_adres}` : ""}
               </p>
@@ -100,7 +100,7 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
                 {pumps.map((p) => (
                   <span
                     key={p}
-                    className="flex items-center gap-1.5 rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-200"
+                    className="flex items-center gap-1.5 rounded-full border border-slate-300 px-2.5 py-1 text-xs text-slate-800"
                   >
                     <PumpShapeIcon pumpType={p} filled size={12} />
                     {p}
@@ -194,7 +194,7 @@ export default function IntelligenceDetailPanel({ selection, dealers }: Intellig
             <div className="mb-4 flex items-center gap-3">
               {hasValue(row.pump) && <PumpShapeIcon pumpType={row.pump} filled={false} size={22} />}
               <div>
-                <p className="text-base font-semibold text-slate-100">
+                <p className="text-base font-semibold text-slate-900">
                   {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
                 </p>
                 <p className="text-xs text-slate-500">

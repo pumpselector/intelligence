@@ -3,20 +3,20 @@ import PumpNetworkMap from "./PumpNetworkMap";
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-slate-950">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.12),_transparent_55%)]" />
+    <section className="relative overflow-hidden bg-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.10),_transparent_55%)]" />
 
       <div className="relative mx-auto grid min-h-[85vh] w-full max-w-7xl grid-cols-1 items-center gap-16 px-6 py-20 lg:grid-cols-2 lg:px-8">
         <div className="flex flex-col items-start text-left">
-          <span className="mb-6 rounded-full border border-slate-700 bg-slate-900/60 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-400">
+          <span className="mb-6 rounded-full border border-slate-300 bg-slate-100 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-600">
             Pump Industry Intelligence
           </span>
 
-          <h1 className="text-6xl font-bold leading-[1.05] tracking-tight text-white sm:text-7xl">
+          <h1 className="text-6xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-7xl">
             Solve the Global Pump Network
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg text-slate-400 sm:text-xl">
+          <p className="mt-6 max-w-xl text-lg text-slate-600 sm:text-xl">
             Access pump manufacturers, their dealers, and country coverage —
             do not miss any connection in the pump industry.
           </p>
