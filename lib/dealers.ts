@@ -13,6 +13,10 @@ export type Dealer = {
   pump: string | null;
   uretici_adres: string | null;
   uretici_ulke: string | null;
+  bayi_lat: number | null;
+  bayi_lng: number | null;
+  uretici_lat: number | null;
+  uretici_lng: number | null;
 };
 
 const PAGE_SIZE = 1000;
@@ -25,7 +29,7 @@ export async function getAllDealers(): Promise<Dealer[]> {
     const { data, error } = await supabase
       .from("dealers")
       .select(
-        "id,created_at,uretici,bayi_adi,bayi_ulke,bayi_adres,bayi_telefon,bayi_email,bayi_web,pump,uretici_adres,uretici_ulke"
+        "id,created_at,uretici,bayi_adi,bayi_ulke,bayi_adres,bayi_telefon,bayi_email,bayi_web,pump,uretici_adres,uretici_ulke,bayi_lat,bayi_lng,uretici_lat,uretici_lng"
       )
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);

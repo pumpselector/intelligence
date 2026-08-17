@@ -1,24 +1,63 @@
 "use client";
 
 import { useMemo } from "react";
-import Image from "next/image";
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { Dealer, hasValue } from "@/lib/dealers";
-import { countryToPercent } from "@/lib/countryCoords";
 import { PumpShapeIcon } from "@/components/shapes";
 import Square from "@/components/shapes/Square";
 
-const MAX_MARKERS_PER_COUNTRY = 16;
-const OFFSET_STEP_PX = 9;
+const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-function spiralOffset(index: number) {
-  const angle = index * 137.5 * (Math.PI / 180);
-  const radius = OFFSET_STEP_PX * Math.sqrt(index);
-  return { dx: radius * Math.cos(angle), dy: radius * Math.sin(angle) };
+const MAX_MARKERS_PER_COUNTRY = 16;
+const JITTER_DEGREES = 0.3;
+
+/** Deterministic pseudo-random offset per marker so repeated renders don't jump around. */
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function jitterFor(key: string): { dlat: number; dlng: number } {
+  const latHash = hashString(`${key}|lat`) % 1000;
+  const lngHash = hashString(`${key}|lng`) % 1000;
+  return {
+    dlat: ((latHash / 1000) * 2 - 1) * JITTER_DEGREES,
+    dlng: ((lngHash / 1000) * 2 - 1) * JITTER_DEGREES,
+  };
+}
+
+function hasCoords(
+  lat: number | null | undefined,
+  lng: number | null | undefined
+): boolean {
+  return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng);
 }
 
 type Marker =
-  | { kind: "dealer"; key: string; id: number; pump: string; country: string; title: string }
-  | { kind: "producer"; key: string; name: string; pump: string; country: string; title: string };
+  | {
+      kind: "dealer";
+      key: string;
+      id: number;
+      pump: string;
+      country: string;
+      title: string;
+      lat: number;
+      lng: number;
+    }
+  | {
+      kind: "producer";
+      key: string;
+      name: string;
+      pump: string;
+      country: string;
+      title: string;
+      lat: number;
+      lng: number;
+    };
 
 type IntelligenceMapProps = {
   dealers: Dealer[];
@@ -50,7 +89,12 @@ export default function IntelligenceMap({
 
     const seenProducers = new Set<string>();
     for (const row of dealers) {
-      if (hasValue(row.uretici) && hasValue(row.uretici_ulke) && hasValue(row.pump)) {
+      if (
+        hasValue(row.uretici) &&
+        hasValue(row.uretici_ulke) &&
+        hasValue(row.pump) &&
+        hasCoords(row.uretici_lat, row.uretici_lng)
+      ) {
         const producerKey = `${row.uretici}|${row.uretici_ulke}|${row.pump}`;
         if (!seenProducers.has(producerKey)) {
           seenProducers.add(producerKey);
@@ -61,13 +105,15 @@ export default function IntelligenceMap({
             pump: row.pump,
             country: row.uretici_ulke,
             title: `${row.uretici} · manufacturer (${row.pump}) · ${row.uretici_ulke}`,
+            lat: row.uretici_lat!,
+            lng: row.uretici_lng!,
           });
         }
       }
     }
 
     for (const row of dealers) {
-      if (hasValue(row.bayi_ulke) && hasValue(row.pump)) {
+      if (hasValue(row.bayi_ulke) && hasValue(row.pump) && hasCoords(row.bayi_lat, row.bayi_lng)) {
         addMarker(row.bayi_ulke, {
           kind: "dealer",
           key: `dealer-${row.id}`,
@@ -77,6 +123,8 @@ export default function IntelligenceMap({
           title: `${hasValue(row.bayi_adi) ? row.bayi_adi : "Dealer"} · ${
             hasValue(row.uretici) ? row.uretici : "?"
           } (${row.pump}) · ${row.bayi_ulke}`,
+          lat: row.bayi_lat!,
+          lng: row.bayi_lng!,
         });
       }
     }
@@ -86,71 +134,96 @@ export default function IntelligenceMap({
 
   return (
     <div className="w-full">
-      <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-950/60">
-        <Image
-          src="/world-map.png"
-          alt="World map"
-          fill
-          className="pointer-events-none select-none object-contain opacity-70"
-        />
+      <div className="w-full rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+        <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-white">
+          <ComposableMap
+            projection="geoEqualEarth"
+            projectionConfig={{ scale: 140 }}
+            width={800}
+            height={400}
+            className="h-full w-full"
+          >
+            <Geographies geography={GEO_URL}>
+              {({ geographies }) =>
+                geographies.map((geo) => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill="#f3f4f6"
+                    stroke="#d1d5db"
+                    strokeWidth={0.5}
+                    style={{
+                      default: { outline: "none" },
+                      hover: { outline: "none", fill: "#e5e7eb" },
+                      pressed: { outline: "none" },
+                    }}
+                  />
+                ))
+              }
+            </Geographies>
 
-        {groups.map(([country, markers]) => {
-          const pos = countryToPercent(country);
-          if (!pos) return null;
+            {groups.map(([country, markers]) => {
+              const visible = markers.slice(0, MAX_MARKERS_PER_COUNTRY);
+              const overflow = markers.length - visible.length;
 
-          const visible = markers.slice(0, MAX_MARKERS_PER_COUNTRY);
-          const overflow = markers.length - visible.length;
+              return (
+                <g key={country}>
+                  {visible.map((marker) => {
+                    const { dlat, dlng } = jitterFor(marker.key);
+                    const coordinates: [number, number] = [marker.lng + dlng, marker.lat + dlat];
+                    const isSelected =
+                      marker.kind === "dealer" ? marker.id === selectedId : marker.name === selectedProducer;
 
-          return (
-            <div key={country}>
-              {visible.map((marker, i) => {
-                const { dx, dy } = spiralOffset(i);
-                const isSelected =
-                  marker.kind === "dealer"
-                    ? marker.id === selectedId
-                    : marker.name === selectedProducer;
+                    return (
+                      <Marker
+                        key={marker.key}
+                        coordinates={coordinates}
+                        onClick={() =>
+                          marker.kind === "dealer" ? onDealerClick(marker.id) : onProducerClick(marker.name)
+                        }
+                        className="cursor-pointer transition-transform hover:scale-150"
+                      >
+                        <title>{marker.title}</title>
+                        <g
+                          className={
+                            isSelected ? "drop-shadow-[0_0_0_2px_rgba(37,99,235,0.9)]" : undefined
+                          }
+                          transform="translate(-7, -7)"
+                        >
+                          <PumpShapeIcon pumpType={marker.pump} filled={marker.kind === "producer"} size={14} />
+                        </g>
+                      </Marker>
+                    );
+                  })}
 
-                return (
-                  <button
-                    key={marker.key}
-                    type="button"
-                    onClick={() =>
-                      marker.kind === "dealer" ? onDealerClick(marker.id) : onProducerClick(marker.name)
-                    }
-                    title={marker.title}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform hover:z-10 hover:scale-150"
-                    style={{ top: `calc(${pos.top}% + ${dy}px)`, left: `calc(${pos.left}% + ${dx}px)` }}
-                  >
-                    <span
-                      className={
-                        isSelected
-                          ? "block rounded-full drop-shadow-[0_0_0_2px_rgba(56,189,248,0.9)]"
-                          : "block"
-                      }
-                    >
-                      <PumpShapeIcon pumpType={marker.pump} filled={marker.kind === "producer"} size={14} />
-                    </span>
-                  </button>
-                );
-              })}
+                  {overflow > 0 &&
+                    (() => {
+                      const meanLat = markers.reduce((sum, m) => sum + m.lat, 0) / markers.length;
+                      const meanLng = markers.reduce((sum, m) => sum + m.lng, 0) / markers.length;
 
-              {overflow > 0 && (
-                <button
-                  type="button"
-                  onClick={() => onOverflowClick(country)}
-                  title={`+${overflow} more in ${country}`}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 flex h-4 w-4 items-center justify-center rounded-full bg-slate-700 text-[9px] font-semibold leading-none text-slate-100 ring-1 ring-slate-900 hover:bg-slate-600"
-                  style={{
-                    top: `calc(${pos.top}% + ${spiralOffset(visible.length).dy}px)`,
-                    left: `calc(${pos.left}% + ${spiralOffset(visible.length).dx}px)`,
-                  }}
-                >
-                  +{overflow}
-                </button>
-              )}
-            </div>
-          );
-        })}
+                      return (
+                        <Marker
+                          coordinates={[meanLng, meanLat]}
+                          onClick={() => onOverflowClick(country)}
+                          className="cursor-pointer"
+                        >
+                          <title>{`+${overflow} more in ${country}`}</title>
+                          <circle r={8} fill="#334155" stroke="#0f172a" strokeWidth={1} />
+                          <text
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            style={{ fontSize: 8, fontWeight: 600, fill: "#f1f5f9" }}
+                          >
+                            +{overflow}
+                          </text>
+                        </Marker>
+                      );
+                    })()}
+                </g>
+              );
+            })}
+          </ComposableMap>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400">

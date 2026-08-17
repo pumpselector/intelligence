@@ -6,13 +6,19 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "geocode": "node scripts/geocode.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
+    "@types/react-simple-maps": "^3.0.6",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-simple-maps": "^3.0.0"
+  },
+  "overrides": {
+    "d3-color": "^3.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
