@@ -9,8 +9,14 @@ const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 
 // Logical SVG viewBox size the projection is fitted to. The map scales to its
 // container via CSS while this aspect ratio (and the un-cut world) is preserved.
-const MAP_WIDTH = 800;
-const MAP_HEIGHT = 480;
+const MAP_WIDTH = 1200;
+const MAP_HEIGHT = 500;
+
+export const MAP_COLORS = {
+  selected: "#4f46e5",
+  inResults: "#a5b4fc",
+  noMatch: "#e2e8f0",
+};
 
 type IntelligenceMapProps = {
   /** DB country names to lightly highlight (e.g. countries a selected producer sells into). */
@@ -36,13 +42,13 @@ export default function IntelligenceMap({ highlightedCountries, selectedCountrie
   );
 
   return (
-    <div className="w-full rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+    <div className="w-full px-3 py-2" style={{ aspectRatio: `${MAP_WIDTH} / ${MAP_HEIGHT}` }}>
       <ComposableMap
         projection="geoEqualEarth"
         projectionConfig={{ scale }}
         width={MAP_WIDTH}
         height={MAP_HEIGHT}
-        className="h-auto w-full"
+        className="h-full w-full"
       >
         <Geographies geography={GEO_URL}>
           {({ geographies }) =>
@@ -51,7 +57,7 @@ export default function IntelligenceMap({ highlightedCountries, selectedCountrie
               const dbName = geoNameToDbName(geoName);
               const isSelected = selectedSet.has(geoName);
               const isHighlighted = highlightSet.has(geoName);
-              const fill = isSelected ? "#4f46e5" : isHighlighted ? "#a5b4fc" : "#e2e8f0";
+              const fill = isSelected ? MAP_COLORS.selected : isHighlighted ? MAP_COLORS.inResults : MAP_COLORS.noMatch;
               const hoverFill = isSelected ? "#4338ca" : "#cbd5e1";
 
               return (
@@ -76,7 +82,6 @@ export default function IntelligenceMap({ highlightedCountries, selectedCountrie
           }
         </Geographies>
       </ComposableMap>
-      <p className="mt-2 text-center text-[10px] text-slate-400">Click a country to filter</p>
     </div>
   );
 }

@@ -3,23 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type MultiSelectFilterProps = {
+  /** Facet name, always shown in the trigger (e.g. "Manufacturer"). */
   label: string;
-  placeholder: string;
   options: string[];
   selected: string[];
   onChange: (next: string[]) => void;
-  /** Optional swatch color per option/chip — used for the Producers filter. */
+  /** Optional swatch color per option — used for the Manufacturer filter. */
   chipColor?: (value: string) => string;
 };
 
-export default function MultiSelectFilter({
-  label,
-  placeholder,
-  options,
-  selected,
-  onChange,
-  chipColor,
-}: MultiSelectFilterProps) {
+export default function MultiSelectFilter({ label, options, selected, onChange, chipColor }: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,47 +43,31 @@ export default function MultiSelectFilter({
     onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
   }
 
-  function remove(value: string) {
-    onChange(selected.filter((v) => v !== value));
-  }
+  const active = selected.length > 0;
 
   return (
-    <div ref={containerRef} className="relative w-full">
-      <span className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500">{label}</span>
-
-      <div className="mb-1.5 flex h-7 flex-wrap gap-1.5 overflow-y-auto">
-        {selected.map((value) => (
-          <span
-            key={value}
-            className="flex max-w-full items-center gap-1 rounded-full border border-slate-300 bg-slate-100 py-0.5 pl-2 pr-1 text-xs text-slate-700"
-          >
-            {chipColor && (
-              <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: chipColor(value) }} />
-            )}
-            <span className="max-w-[8rem] truncate">{value}</span>
-            <button
-              type="button"
-              onClick={() => remove(value)}
-              title={`Remove ${value}`}
-              className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-300 hover:text-slate-900"
-            >
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-3 py-2.5 text-left text-sm transition-colors hover:border-slate-400"
+        className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors ${
+          active
+            ? "border-indigo-200 bg-indigo-50/60 text-slate-900"
+            : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
+        }`}
       >
-        <span className={selected.length > 0 ? "truncate text-slate-900" : "truncate text-slate-500"}>
-          {selected.length > 0 ? `${selected.length} selected` : placeholder}
-        </span>
+        {chipColor && selected.length === 1 && (
+          <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: chipColor(selected[0]) }} />
+        )}
+        <span className={active ? "text-slate-500" : ""}>{label}</span>
+        {active && (
+          <span className="max-w-[9rem] truncate font-medium text-slate-900">
+            {selected.length === 1 ? selected[0] : `${selected[0]} +${selected.length - 1}`}
+          </span>
+        )}
         <svg
           viewBox="0 0 20 20"
-          className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
           fill="currentColor"
         >
           <path d="M5.25 7.5 10 12.25 14.75 7.5Z" />
@@ -98,14 +75,14 @@ export default function MultiSelectFilter({
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1.5 w-full rounded-md border border-slate-300 bg-white shadow-xl shadow-slate-300/40">
-          <div className="border-b border-slate-200 p-2">
+        <div className="absolute z-20 mt-1.5 w-64 rounded-md border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
+          <div className="border-b border-slate-100 p-2">
             <input
               ref={searchRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
+              placeholder={`Search ${label.toLowerCase()}...`}
               className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-slate-400"
             />
           </div>
@@ -113,12 +90,12 @@ export default function MultiSelectFilter({
             {filteredOptions.length === 0 && <li className="px-3 py-2 text-sm text-slate-400">No matches</li>}
             {filteredOptions.map((option) => (
               <li key={option}>
-                <label className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-900 hover:bg-slate-100">
+                <label className="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                   <input
                     type="checkbox"
                     checked={selected.includes(option)}
                     onChange={() => toggle(option)}
-                    className="h-3.5 w-3.5 shrink-0 rounded border-slate-300"
+                    className="h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   {chipColor && (
                     <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: chipColor(option) }} />

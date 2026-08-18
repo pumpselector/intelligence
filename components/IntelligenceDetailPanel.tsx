@@ -12,15 +12,17 @@ type SortDirection = "asc" | "desc";
 type IntelligenceDetailPanelProps = {
   /** Rows already narrowed by the four filter boxes. */
   dealers: Dealer[];
-  /** Full, unfiltered dataset size — for the "Showing Y of X records" line. */
+  /** Full, unfiltered dataset size — for the "Showing Y of X dealers" line. */
   totalCount: number;
+  /** Free-text search, owned by the parent so it can live in the top filter bar. */
+  search: string;
 };
 
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <span className="text-xs text-slate-500">{label}</span>
-      <p className="text-slate-800">{hasValue(value) ? value : "—"}</p>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
+      <p className="mt-0.5 text-sm text-slate-800">{hasValue(value) ? value : "—"}</p>
     </div>
   );
 }
@@ -31,6 +33,16 @@ function ProducerDot({ producer }: { producer: string }) {
       className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
       style={{ backgroundColor: getProducerColor(producer) }}
     />
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.1" />
+      <path d="M8 7.25v3.75" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      <circle cx="8" cy="5.1" r="0.15" fill="currentColor" stroke="currentColor" strokeWidth="0.9" />
+    </svg>
   );
 }
 
@@ -49,7 +61,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
         className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2.5">
             {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
             <div>
@@ -69,7 +81,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
             ✕
           </button>
         </div>
-        <div className="grid grid-cols-1 gap-3 text-sm">
+        <div className="grid grid-cols-1 gap-3.5 text-sm">
           <Field label="Pump type" value={row.pump} />
           <Field label="Dealer address" value={row.bayi_adres} />
           <Field label="Dealer phone" value={row.bayi_telefon} />
@@ -111,7 +123,7 @@ function SortHeader({
 }) {
   const active = sortColumn === column;
   return (
-    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
       <button
         type="button"
         onClick={() => onSort(column)}
@@ -124,8 +136,7 @@ function SortHeader({
   );
 }
 
-export default function IntelligenceDetailPanel({ dealers, totalCount }: IntelligenceDetailPanelProps) {
-  const [search, setSearch] = useState("");
+export default function IntelligenceDetailPanel({ dealers, totalCount, search }: IntelligenceDetailPanelProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("bayi_ulke");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
@@ -172,68 +183,72 @@ export default function IntelligenceDetailPanel({ dealers, totalCount }: Intelli
 
   return (
     <div>
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-600">
-          Showing {sorted.length} of {totalCount} records.
+      <div className="mb-2.5 flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          {search.trim() ? (
+            <>
+              <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> of{" "}
+              {totalCount.toLocaleString()} listings
+            </>
+          ) : (
+            <>
+              <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> listings
+            </>
+          )}
         </p>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search: country, producer, dealer, pump type..."
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400 sm:w-72"
-        />
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <SortHeader label="Country" column="bayi_ulke" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-              <SortHeader label="Producer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-              <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-              <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.length === 0 && (
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div className="max-h-[680px] overflow-auto">
+          <table className="w-full min-w-[640px] border-collapse text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-50">
               <tr>
-                <td colSpan={4} className="px-3 py-8 text-center text-sm text-slate-400">
-                  No matching records found.
-                </td>
+                <SortHeader label="Country" column="bayi_ulke" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortHeader label="Manufacturer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
               </tr>
-            )}
-            {pageRows.map((row, i) => (
-              <tr key={row.id} className={i % 2 === 1 ? "bg-slate-50/60" : undefined}>
-                <td className="border-t border-slate-200 px-3 py-2.5 text-slate-700">
-                  {hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}
-                </td>
-                <td className="border-t border-slate-200 px-3 py-2.5">
-                  <span className="flex items-center gap-2">
-                    {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
-                    <span className="truncate text-slate-800">{hasValue(row.uretici) ? row.uretici : "—"}</span>
-                  </span>
-                </td>
-                <td className="border-t border-slate-200 px-3 py-2.5 text-slate-700">
-                  {hasValue(row.pump) ? row.pump : "—"}
-                </td>
-                <td className="border-t border-slate-200 px-3 py-2.5">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate text-slate-800">{hasValue(row.bayi_adi) ? row.bayi_adi : "—"}</span>
-                    <button
-                      type="button"
-                      onClick={() => setDetailRowId(row.id)}
-                      title="Show details"
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[10px] font-semibold italic text-slate-600 hover:bg-slate-100"
-                    >
-                      i
-                    </button>
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pageRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-400">
+                    No matching records found.
+                  </td>
+                </tr>
+              )}
+              {pageRows.map((row) => (
+                <tr key={row.id} className="group border-t border-slate-100 hover:bg-slate-50/80">
+                  <td className="px-4 py-2 text-slate-600">{hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}</td>
+                  <td className="px-4 py-2">
+                    <span className="flex items-center gap-2">
+                      {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
+                      <span className="truncate font-medium text-slate-800">
+                        {hasValue(row.uretici) ? row.uretici : "—"}
+                      </span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">{hasValue(row.pump) ? row.pump : "—"}</td>
+                  <td className="px-4 py-2">
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate font-medium text-slate-800">
+                        {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDetailRowId(row.id)}
+                        title="Show details"
+                        className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-slate-300 opacity-0 transition-opacity hover:text-indigo-600 group-hover:opacity-100"
+                      >
+                        <InfoIcon />
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {pageCount > 1 && (
@@ -258,7 +273,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount }: Intelli
                 type="button"
                 onClick={() => setPage(p)}
                 className={`h-7 w-7 rounded-md text-xs font-medium ${
-                  p === currentPage ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  p === currentPage ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
                 {p}
