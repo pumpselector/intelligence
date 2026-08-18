@@ -6,13 +6,13 @@ import { getProducerColor } from "@/lib/producerColor";
 
 const PAGE_SIZE = 20;
 
-type SortColumn = "uretici" | "bayi_ulke" | "pump" | "bayi_adi";
+type SortColumn = "bayi_ulke" | "uretici" | "pump" | "bayi_adi";
 type SortDirection = "asc" | "desc";
 
 type IntelligenceDetailPanelProps = {
   /** Rows already narrowed by the four filter boxes. */
   dealers: Dealer[];
-  /** Full, unfiltered dataset size — for the "X kayıttan Y tanesi" line. */
+  /** Full, unfiltered dataset size — for the "Showing Y of X records" line. */
   totalCount: number;
 };
 
@@ -126,7 +126,7 @@ function SortHeader({
 
 export default function IntelligenceDetailPanel({ dealers, totalCount }: IntelligenceDetailPanelProps) {
   const [search, setSearch] = useState("");
-  const [sortColumn, setSortColumn] = useState<SortColumn>("uretici");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("bayi_ulke");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
   const [detailRowId, setDetailRowId] = useState<number | null>(null);
@@ -174,13 +174,13 @@ export default function IntelligenceDetailPanel({ dealers, totalCount }: Intelli
     <div>
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-600">
-          {totalCount} kayıttan {sorted.length} tanesi gösteriliyor.
+          Showing {sorted.length} of {totalCount} records.
         </p>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Ara: üretici, bayi, ülke, pompa tipi..."
+          placeholder="Search: country, producer, dealer, pump type..."
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400 sm:w-72"
         />
       </div>
@@ -189,30 +189,30 @@ export default function IntelligenceDetailPanel({ dealers, totalCount }: Intelli
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <SortHeader label="Üretici" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-              <SortHeader label="Ülke" column="bayi_ulke" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-              <SortHeader label="Pompa Tipi" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-              <SortHeader label="Bayi" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+              <SortHeader label="Country" column="bayi_ulke" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+              <SortHeader label="Producer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+              <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+              <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
             </tr>
           </thead>
           <tbody>
             {pageRows.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-3 py-8 text-center text-sm text-slate-400">
-                  Eşleşen kayıt bulunamadı.
+                  No matching records found.
                 </td>
               </tr>
             )}
             {pageRows.map((row, i) => (
               <tr key={row.id} className={i % 2 === 1 ? "bg-slate-50/60" : undefined}>
+                <td className="border-t border-slate-200 px-3 py-2.5 text-slate-700">
+                  {hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}
+                </td>
                 <td className="border-t border-slate-200 px-3 py-2.5">
                   <span className="flex items-center gap-2">
                     {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
                     <span className="truncate text-slate-800">{hasValue(row.uretici) ? row.uretici : "—"}</span>
                   </span>
-                </td>
-                <td className="border-t border-slate-200 px-3 py-2.5 text-slate-700">
-                  {hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}
                 </td>
                 <td className="border-t border-slate-200 px-3 py-2.5 text-slate-700">
                   {hasValue(row.pump) ? row.pump : "—"}
@@ -223,7 +223,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount }: Intelli
                     <button
                       type="button"
                       onClick={() => setDetailRowId(row.id)}
-                      title="Detayları göster"
+                      title="Show details"
                       className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[10px] font-semibold italic text-slate-600 hover:bg-slate-100"
                     >
                       i
@@ -244,7 +244,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount }: Intelli
             disabled={currentPage === 1}
             className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            ◀ Önceki
+            ◀ Previous
           </button>
 
           {getPageNumbers(currentPage, pageCount).map((p, i) =>
@@ -272,7 +272,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount }: Intelli
             disabled={currentPage === pageCount}
             className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Sonraki ▶
+            Next ▶
           </button>
         </div>
       )}

@@ -86,7 +86,7 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
               onClick={() => setFilters(EMPTY_FILTERS)}
               className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
             >
-              Tümünü Temizle
+              Clear All
             </button>
           </div>
         )}

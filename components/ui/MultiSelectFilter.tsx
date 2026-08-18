@@ -58,29 +58,27 @@ export default function MultiSelectFilter({
     <div ref={containerRef} className="relative w-full">
       <span className="mb-1.5 block text-xs font-medium uppercase tracking-widest text-slate-500">{label}</span>
 
-      {selected.length > 0 && (
-        <div className="mb-1.5 flex flex-wrap gap-1.5">
-          {selected.map((value) => (
-            <span
-              key={value}
-              className="flex max-w-full items-center gap-1 rounded-full border border-slate-300 bg-slate-100 py-0.5 pl-2 pr-1 text-xs text-slate-700"
+      <div className="mb-1.5 flex h-7 flex-wrap gap-1.5 overflow-y-auto">
+        {selected.map((value) => (
+          <span
+            key={value}
+            className="flex max-w-full items-center gap-1 rounded-full border border-slate-300 bg-slate-100 py-0.5 pl-2 pr-1 text-xs text-slate-700"
+          >
+            {chipColor && (
+              <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: chipColor(value) }} />
+            )}
+            <span className="max-w-[8rem] truncate">{value}</span>
+            <button
+              type="button"
+              onClick={() => remove(value)}
+              title={`Remove ${value}`}
+              className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-300 hover:text-slate-900"
             >
-              {chipColor && (
-                <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: chipColor(value) }} />
-              )}
-              <span className="max-w-[8rem] truncate">{value}</span>
-              <button
-                type="button"
-                onClick={() => remove(value)}
-                title={`Remove ${value}`}
-                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-300 hover:text-slate-900"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
 
       <button
         type="button"
