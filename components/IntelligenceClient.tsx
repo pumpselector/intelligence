@@ -16,7 +16,22 @@ const FILTER_LABELS: Record<keyof Filters, string> = {
   producers: "Manufacturer",
   countries: "Country",
   pumps: "Product Type",
-  dealers: "Dealer",
+};
+
+/** Per-filter pastel accent — trigger button when active, and the matching chip below. */
+const FILTER_COLORS: Record<keyof Filters, { trigger: string; chip: string }> = {
+  producers: {
+    trigger: "border-sky-200 bg-sky-50 text-slate-900",
+    chip: "border-sky-200 bg-sky-50 text-sky-700",
+  },
+  countries: {
+    trigger: "border-emerald-200 bg-emerald-50 text-slate-900",
+    chip: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  },
+  pumps: {
+    trigger: "border-amber-200 bg-amber-50 text-slate-900",
+    chip: "border-amber-200 bg-amber-50 text-amber-700",
+  },
 };
 
 function SearchIcon() {
@@ -53,7 +68,6 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
   const pumpOptions = useMemo(() => optionsFor(dealers, filters, "pump", "pumps"), [dealers, filters]);
   const producerOptions = useMemo(() => optionsFor(dealers, filters, "uretici", "producers"), [dealers, filters]);
   const countryOptions = useMemo(() => optionsFor(dealers, filters, "bayi_ulke", "countries"), [dealers, filters]);
-  const dealerOptions = useMemo(() => optionsFor(dealers, filters, "bayi_adi", "dealers"), [dealers, filters]);
 
   const filteredDealers = useMemo(() => filterDealers(dealers, filters), [dealers, filters]);
 
@@ -67,6 +81,7 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
       dealers: new Set(filteredDealers.map((d) => d.bayi_adi).filter(hasValue)).size,
       manufacturers: new Set(filteredDealers.map((d) => d.uretici).filter(hasValue)).size,
       countries: new Set(filteredDealers.map((d) => d.bayi_ulke).filter(hasValue)).size,
+      pumpModels: new Set(filteredDealers.map((d) => d.pump).filter(hasValue)).size,
     }),
     [filteredDealers]
   );
@@ -108,7 +123,7 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
 
         <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1">
+            <div className="relative w-56 shrink-0">
               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">
                 <SearchIcon />
               </span>
@@ -129,24 +144,21 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
               selected={filters.producers}
               onChange={(next) => setFilters((f) => ({ ...f, producers: next }))}
               chipColor={getProducerColor}
+              activeClassName={FILTER_COLORS.producers.trigger}
             />
             <MultiSelectFilter
               label="Country"
               options={countryOptions}
               selected={filters.countries}
               onChange={(next) => setFilters((f) => ({ ...f, countries: next }))}
+              activeClassName={FILTER_COLORS.countries.trigger}
             />
             <MultiSelectFilter
               label="Product Type"
               options={pumpOptions}
               selected={filters.pumps}
               onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
-            />
-            <MultiSelectFilter
-              label="Dealer"
-              options={dealerOptions}
-              selected={filters.dealers}
-              onChange={(next) => setFilters((f) => ({ ...f, dealers: next }))}
+              activeClassName={FILTER_COLORS.pumps.trigger}
             />
 
             {!isFiltersEmpty(filters) && (
@@ -165,15 +177,15 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
               {activeChips.map(({ field, value }) => (
                 <span
                   key={`${field}-${value}`}
-                  className="flex max-w-full items-center gap-1 rounded border border-slate-200 bg-slate-50 py-1 pl-2 pr-1 text-xs text-slate-700"
+                  className={`flex max-w-full items-center gap-1 rounded border py-1 pl-2 pr-1 text-xs ${FILTER_COLORS[field].chip}`}
                 >
-                  <span className="text-slate-400">{FILTER_LABELS[field]}:</span>
-                  <span className="max-w-[10rem] truncate font-medium text-slate-800">{value}</span>
+                  <span className="opacity-70">{FILTER_LABELS[field]}:</span>
+                  <span className="max-w-[10rem] truncate font-medium">{value}</span>
                   <button
                     type="button"
                     onClick={() => removeFilterValue(field, value)}
                     title={`Remove ${value}`}
-                    className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-900"
+                    className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
                   >
                     ×
                   </button>
@@ -190,6 +202,7 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
               <Stat value={summary.dealers} label="Dealers" />
               <Stat value={summary.manufacturers} label="Manufacturers" />
               <Stat value={summary.countries} label="Countries" />
+              <Stat value={summary.pumpModels} label="Pump Models" />
             </div>
           </div>
 

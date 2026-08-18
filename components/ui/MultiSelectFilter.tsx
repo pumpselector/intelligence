@@ -10,9 +10,18 @@ type MultiSelectFilterProps = {
   onChange: (next: string[]) => void;
   /** Optional swatch color per option — used for the Manufacturer filter. */
   chipColor?: (value: string) => string;
+  /** Border/background/text classes applied to the trigger while it has a selection — lets each filter carry its own pastel accent. */
+  activeClassName?: string;
 };
 
-export default function MultiSelectFilter({ label, options, selected, onChange, chipColor }: MultiSelectFilterProps) {
+export default function MultiSelectFilter({
+  label,
+  options,
+  selected,
+  onChange,
+  chipColor,
+  activeClassName = "border-indigo-200 bg-indigo-50/60 text-slate-900",
+}: MultiSelectFilterProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,9 +60,7 @@ export default function MultiSelectFilter({ label, options, selected, onChange, 
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors ${
-          active
-            ? "border-indigo-200 bg-indigo-50/60 text-slate-900"
-            : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
+          active ? activeClassName : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
         }`}
       >
         {chipColor && selected.length === 1 && (

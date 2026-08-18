@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
 import { Dealer, hasValue } from "@/lib/dealers";
 import { getProducerColor } from "@/lib/producerColor";
 
@@ -18,15 +19,6 @@ type IntelligenceDetailPanelProps = {
   search: string;
 };
 
-function Field({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
-      <p className="mt-0.5 text-sm text-slate-800">{hasValue(value) ? value : "—"}</p>
-    </div>
-  );
-}
-
 function ProducerDot({ producer }: { producer: string }) {
   return (
     <span
@@ -36,13 +28,15 @@ function ProducerDot({ producer }: { producer: string }) {
   );
 }
 
-function InfoIcon() {
+function DealerInfoRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string | null }) {
   return (
-    <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
-      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.1" />
-      <path d="M8 7.25v3.75" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-      <circle cx="8" cy="5.1" r="0.15" fill="currentColor" stroke="currentColor" strokeWidth="0.9" />
-    </svg>
+    <div className="flex items-start gap-2.5">
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={1.75} />
+      <div className="min-w-0">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+        <p className="truncate text-sm text-slate-700">{hasValue(value) ? value : "—"}</p>
+      </div>
+    </div>
   );
 }
 
@@ -58,35 +52,56 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
+        className="w-full max-w-xl rounded-lg border border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-2.5">
-            {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
-            <div>
-              <p className="text-base font-semibold text-slate-900">
-                {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
-              </p>
-              <p className="text-xs text-slate-500">
-                {hasValue(row.uretici) ? row.uretici : "—"} · {hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}
-              </p>
-            </div>
-          </div>
+        <div className="relative border-b border-slate-100 px-6 pb-5 pt-6">
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="absolute right-4 top-4 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
-            ✕
+            <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
+
+          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 pr-6">
+            <div className="min-w-0">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Producer</span>
+              <div className="mt-1 flex items-center gap-2">
+                {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
+                <p className="truncate text-lg font-bold leading-tight text-slate-900">
+                  {hasValue(row.uretici) ? row.uretici : "—"}
+                </p>
+              </div>
+              <p className="mt-1.5 text-xs leading-snug text-slate-500">
+                {hasValue(row.uretici_adres) ? row.uretici_adres : "—"}
+              </p>
+              <p className="text-xs leading-snug text-slate-500">
+                {hasValue(row.uretici_ulke) ? row.uretici_ulke : "—"}
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center pt-6">
+              <span className="mb-1.5 whitespace-nowrap rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+                {hasValue(row.pump) ? row.pump : "Pump"}
+              </span>
+              <ArrowRight className="h-5 w-5 text-slate-300" strokeWidth={1.75} />
+            </div>
+
+            <div className="min-w-0 text-right">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dealer</span>
+              <p className="mt-1 truncate text-lg font-bold leading-tight text-slate-900">
+                {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 gap-3.5 text-sm">
-          <Field label="Pump type" value={row.pump} />
-          <Field label="Dealer address" value={row.bayi_adres} />
-          <Field label="Dealer phone" value={row.bayi_telefon} />
-          <Field label="Dealer email" value={row.bayi_email} />
-          <Field label="Dealer website" value={row.bayi_web} />
+
+        <div className="grid grid-cols-1 gap-3.5 px-6 py-5 sm:grid-cols-2">
+          <DealerInfoRow icon={MapPin} label="Address" value={row.bayi_adres} />
+          <DealerInfoRow icon={Phone} label="Phone" value={row.bayi_telefon} />
+          <DealerInfoRow icon={Mail} label="Email" value={row.bayi_email} />
+          <DealerInfoRow icon={Globe} label="Website" value={row.bayi_web} />
         </div>
       </div>
     </div>
@@ -218,7 +233,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                 </tr>
               )}
               {pageRows.map((row) => (
-                <tr key={row.id} className="group border-t border-slate-100 hover:bg-slate-50/80">
+                <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
                   <td className="px-4 py-2 text-slate-600">{hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}</td>
                   <td className="px-4 py-2">
                     <span className="flex items-center gap-2">
@@ -230,7 +245,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                   </td>
                   <td className="px-4 py-2 text-slate-600">{hasValue(row.pump) ? row.pump : "—"}</td>
                   <td className="px-4 py-2">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-2">
                       <span className="truncate font-medium text-slate-800">
                         {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
                       </span>
@@ -238,9 +253,9 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                         type="button"
                         onClick={() => setDetailRowId(row.id)}
                         title="Show details"
-                        className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-slate-300 opacity-0 transition-opacity hover:text-indigo-600 group-hover:opacity-100"
+                        className="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium leading-none text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
                       >
-                        <InfoIcon />
+                        Details
                       </button>
                     </span>
                   </td>
