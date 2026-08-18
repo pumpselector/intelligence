@@ -210,49 +210,57 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
 
       <div className="overflow-hidden rounded-lg border border-slate-200">
         <div className="max-h-[680px] overflow-auto">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
+          <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-[16%]" />
+              <col className="w-[28%]" />
+              <col className="w-[20%]" />
+              <col className="w-[27%]" />
+              <col className="w-[88px]" />
+            </colgroup>
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr>
                 <SortHeader label="Country" column="bayi_ulke" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Manufacturer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <th className="px-4 py-2.5">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {pageRows.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
                     No matching records found.
                   </td>
                 </tr>
               )}
               {pageRows.map((row) => (
                 <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
-                  <td className="px-4 py-2 text-slate-600">{hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}</td>
+                  <td className="truncate px-4 py-2 text-slate-600">{hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}</td>
                   <td className="px-4 py-2">
-                    <span className="flex items-center gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
                       {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
-                      <span className="truncate font-medium text-slate-800">
+                      <span className="min-w-0 truncate font-medium text-slate-800">
                         {hasValue(row.uretici) ? row.uretici : "—"}
                       </span>
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-slate-600">{hasValue(row.pump) ? row.pump : "—"}</td>
-                  <td className="px-4 py-2">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate font-medium text-slate-800">
-                        {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setDetailRowId(row.id)}
-                        title="Show details"
-                        className="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium leading-none text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-                      >
-                        Details
-                      </button>
-                    </span>
+                  <td className="truncate px-4 py-2 text-slate-600">{hasValue(row.pump) ? row.pump : "—"}</td>
+                  <td className="truncate px-4 py-2 font-medium text-slate-800">
+                    {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setDetailRowId(row.id)}
+                      title="Show details"
+                      className="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium leading-none text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                    >
+                      Details
+                    </button>
                   </td>
                 </tr>
               ))}

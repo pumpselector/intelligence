@@ -18,6 +18,9 @@ const FILTER_LABELS: Record<keyof Filters, string> = {
   pumps: "Product Type",
 };
 
+/** Sidebar dropdown order — chip groups below follow this same order. */
+const FILTER_ORDER: (keyof Filters)[] = ["producers", "countries", "pumps"];
+
 /** Per-filter pastel accent — trigger button when active, and the matching chip below. */
 const FILTER_COLORS: Record<keyof Filters, { trigger: string; chip: string }> = {
   producers: {
@@ -91,13 +94,7 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
     [visibleDealers]
   );
 
-  const activeChips = useMemo(() => {
-    const chips: { field: keyof Filters; value: string }[] = [];
-    (Object.keys(filters) as (keyof Filters)[]).forEach((field) => {
-      filters[field].forEach((value) => chips.push({ field, value }));
-    });
-    return chips;
-  }, [filters]);
+  const hasActiveFilters = !isFiltersEmpty(filters) || search.trim().length > 0;
 
   function handleCountryClick(country: string) {
     setFilters((f) =>
@@ -109,6 +106,11 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
 
   function removeFilterValue(field: keyof Filters, value: string) {
     setFilters((f) => ({ ...f, [field]: f[field].filter((v) => v !== value) }));
+  }
+
+  function clearAll() {
+    setFilters(EMPTY_FILTERS);
+    setSearch("");
   }
 
   return (
@@ -126,11 +128,23 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr] lg:items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[350px_1fr]">
           {/* Filter sidebar */}
           <aside className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 lg:sticky lg:top-6">
-            <div>
+            <div className="flex items-center justify-between">
               <span className="text-xs font-medium uppercase tracking-widest text-slate-500">Filters</span>
+              <button
+                type="button"
+                onClick={clearAll}
+                disabled={!hasActiveFilters}
+                className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  hasActiveFilters
+                    ? "border-red-300 text-red-600 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+                    : "cursor-not-allowed border-slate-200 text-slate-400"
+                }`}
+              >
+                Clear Filters
+              </button>
             </div>
 
             <div className="relative">
@@ -171,35 +185,31 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
               />
             </div>
 
-            {!isFiltersEmpty(filters) && (
-              <button
-                type="button"
-                onClick={() => setFilters(EMPTY_FILTERS)}
-                className="self-start whitespace-nowrap text-xs font-medium text-slate-500 hover:text-slate-900"
-              >
-                Clear filters
-              </button>
-            )}
-
-            {activeChips.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
-                {activeChips.map(({ field, value }) => (
-                  <span
-                    key={`${field}-${value}`}
-                    className={`flex max-w-full items-center gap-1 rounded border py-1 pl-2 pr-1 text-xs ${FILTER_COLORS[field].chip}`}
-                  >
-                    <span className="opacity-70">{FILTER_LABELS[field]}:</span>
-                    <span className="max-w-[9rem] truncate font-medium">{value}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFilterValue(field, value)}
-                      title={`Remove ${value}`}
-                      className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+            {FILTER_ORDER.some((field) => filters[field].length > 0) && (
+              <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+                {FILTER_ORDER.map((field) =>
+                  filters[field].length > 0 ? (
+                    <div key={field} className="flex flex-wrap items-center gap-1.5">
+                      {filters[field].map((value) => (
+                        <span
+                          key={`${field}-${value}`}
+                          className={`flex max-w-full items-center gap-1 rounded border py-1 pl-2 pr-1 text-xs ${FILTER_COLORS[field].chip}`}
+                        >
+                          <span className="opacity-70">{FILTER_LABELS[field]}:</span>
+                          <span className="max-w-[9rem] truncate font-medium">{value}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFilterValue(field, value)}
+                            title={`Remove ${value}`}
+                            className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null
+                )}
               </div>
             )}
 
