@@ -55,23 +55,25 @@ export default function MultiSelectFilter({
   const active = selected.length > 0;
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative w-full">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors ${
+        className={`flex w-full items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors ${
           active ? activeClassName : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
         }`}
       >
-        {chipColor && selected.length === 1 && (
-          <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: chipColor(selected[0]) }} />
-        )}
-        <span className={active ? "text-slate-500" : ""}>{label}</span>
-        {active && (
-          <span className="max-w-[9rem] truncate font-medium text-slate-900">
-            {selected.length === 1 ? selected[0] : `${selected[0]} +${selected.length - 1}`}
-          </span>
-        )}
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          {chipColor && selected.length === 1 && (
+            <span className="h-2 w-2 shrink-0 rounded-sm" style={{ backgroundColor: chipColor(selected[0]) }} />
+          )}
+          <span className={`shrink-0 ${active ? "text-slate-500" : ""}`}>{label}</span>
+          {active && (
+            <span className="truncate font-medium text-slate-900">
+              {selected.length === 1 ? selected[0] : `${selected[0]} +${selected.length - 1}`}
+            </span>
+          )}
+        </span>
         <svg
           viewBox="0 0 20 20"
           className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
@@ -82,7 +84,7 @@ export default function MultiSelectFilter({
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1.5 w-64 rounded-md border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
+        <div className="absolute z-20 mt-1.5 w-full min-w-[240px] rounded-md border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
           <div className="border-b border-slate-100 p-2">
             <input
               ref={searchRef}

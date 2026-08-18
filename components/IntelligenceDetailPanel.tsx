@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
 import { Dealer, hasValue } from "@/lib/dealers";
+import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 
 const PAGE_SIZE = 20;
@@ -157,13 +158,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
   const [page, setPage] = useState(1);
   const [detailRowId, setDetailRowId] = useState<number | null>(null);
 
-  const searched = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return dealers;
-    return dealers.filter((d) =>
-      [d.uretici, d.bayi_ulke, d.pump, d.bayi_adi].some((v) => hasValue(v) && v.toLowerCase().includes(q))
-    );
-  }, [dealers, search]);
+  const searched = useMemo(() => searchDealers(dealers, search), [dealers, search]);
 
   const sorted = useMemo(() => {
     const collator = new Intl.Collator("en", { sensitivity: "base" });

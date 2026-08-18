@@ -23,6 +23,25 @@ export function filterDealers(dealers: Dealer[], filters: Filters): Dealer[] {
   return dealers.filter((row) => matches(row, filters));
 }
 
+const SEARCHABLE_FIELDS: (keyof Pick<Dealer, "uretici" | "bayi_ulke" | "pump" | "bayi_adi">)[] = [
+  "uretici",
+  "bayi_ulke",
+  "pump",
+  "bayi_adi",
+];
+
+/** Free-text match across manufacturer, country, pump type and dealer name. */
+export function searchDealers(dealers: Dealer[], search: string): Dealer[] {
+  const q = search.trim().toLowerCase();
+  if (!q) return dealers;
+  return dealers.filter((row) =>
+    SEARCHABLE_FIELDS.some((field) => {
+      const value = row[field];
+      return hasValue(value) && value.toLowerCase().includes(q);
+    })
+  );
+}
+
 type DealerStringField = "pump" | "uretici" | "bayi_ulke" | "bayi_adi";
 
 /**

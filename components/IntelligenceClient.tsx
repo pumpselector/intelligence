@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Dealer, hasValue } from "@/lib/dealers";
-import { EMPTY_FILTERS, Filters, filterDealers, isFiltersEmpty, optionsFor } from "@/lib/filters";
+import { EMPTY_FILTERS, Filters, filterDealers, isFiltersEmpty, optionsFor, searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 import MultiSelectFilter from "@/components/ui/MultiSelectFilter";
 import IntelligenceDetailPanel from "@/components/IntelligenceDetailPanel";
@@ -45,8 +45,8 @@ function SearchIcon() {
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="text-right">
-      <p className="text-lg font-semibold tabular-nums text-slate-900 sm:text-xl">{value.toLocaleString()}</p>
+    <div>
+      <p className="text-lg font-semibold tabular-nums text-slate-900">{value.toLocaleString()}</p>
       <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );
@@ -71,6 +71,11 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
 
   const filteredDealers = useMemo(() => filterDealers(dealers, filters), [dealers, filters]);
 
+  // Filters + free-text search combined — drives the always-visible sidebar
+  // stats so a search like "Wilden" updates the result count instantly,
+  // without the user having to scroll past the map to the table.
+  const visibleDealers = useMemo(() => searchDealers(filteredDealers, search), [filteredDealers, search]);
+
   const highlightedCountries = useMemo(() => {
     if (filters.producers.length === 0) return [];
     return [...new Set(filteredDealers.map((d) => d.bayi_ulke).filter(hasValue))];
@@ -78,12 +83,12 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
 
   const summary = useMemo(
     () => ({
-      dealers: new Set(filteredDealers.map((d) => d.bayi_adi).filter(hasValue)).size,
-      manufacturers: new Set(filteredDealers.map((d) => d.uretici).filter(hasValue)).size,
-      countries: new Set(filteredDealers.map((d) => d.bayi_ulke).filter(hasValue)).size,
-      pumpModels: new Set(filteredDealers.map((d) => d.pump).filter(hasValue)).size,
+      dealers: new Set(visibleDealers.map((d) => d.bayi_adi).filter(hasValue)).size,
+      manufacturers: new Set(visibleDealers.map((d) => d.uretici).filter(hasValue)).size,
+      countries: new Set(visibleDealers.map((d) => d.bayi_ulke).filter(hasValue)).size,
+      pumpModels: new Set(visibleDealers.map((d) => d.pump).filter(hasValue)).size,
     }),
-    [filteredDealers]
+    [visibleDealers]
   );
 
   const activeChips = useMemo(() => {
@@ -121,9 +126,14 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
           </p>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative w-56 shrink-0">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr] lg:items-start">
+          {/* Filter sidebar */}
+          <aside className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 lg:sticky lg:top-6">
+            <div>
+              <span className="text-xs font-medium uppercase tracking-widest text-slate-500">Filters</span>
+            </div>
+
+            <div className="relative">
               <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400">
                 <SearchIcon />
               </span>
@@ -136,88 +146,89 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
               />
             </div>
 
-            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
-
-            <MultiSelectFilter
-              label="Manufacturer"
-              options={producerOptions}
-              selected={filters.producers}
-              onChange={(next) => setFilters((f) => ({ ...f, producers: next }))}
-              chipColor={getProducerColor}
-              activeClassName={FILTER_COLORS.producers.trigger}
-            />
-            <MultiSelectFilter
-              label="Country"
-              options={countryOptions}
-              selected={filters.countries}
-              onChange={(next) => setFilters((f) => ({ ...f, countries: next }))}
-              activeClassName={FILTER_COLORS.countries.trigger}
-            />
-            <MultiSelectFilter
-              label="Product Type"
-              options={pumpOptions}
-              selected={filters.pumps}
-              onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
-              activeClassName={FILTER_COLORS.pumps.trigger}
-            />
+            <div className="flex flex-col gap-2">
+              <MultiSelectFilter
+                label="Manufacturer"
+                options={producerOptions}
+                selected={filters.producers}
+                onChange={(next) => setFilters((f) => ({ ...f, producers: next }))}
+                chipColor={getProducerColor}
+                activeClassName={FILTER_COLORS.producers.trigger}
+              />
+              <MultiSelectFilter
+                label="Country"
+                options={countryOptions}
+                selected={filters.countries}
+                onChange={(next) => setFilters((f) => ({ ...f, countries: next }))}
+                activeClassName={FILTER_COLORS.countries.trigger}
+              />
+              <MultiSelectFilter
+                label="Product Type"
+                options={pumpOptions}
+                selected={filters.pumps}
+                onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
+                activeClassName={FILTER_COLORS.pumps.trigger}
+              />
+            </div>
 
             {!isFiltersEmpty(filters) && (
               <button
                 type="button"
                 onClick={() => setFilters(EMPTY_FILTERS)}
-                className="ml-auto whitespace-nowrap text-xs font-medium text-slate-500 hover:text-slate-900"
+                className="self-start whitespace-nowrap text-xs font-medium text-slate-500 hover:text-slate-900"
               >
                 Clear filters
               </button>
             )}
-          </div>
 
-          {activeChips.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
-              {activeChips.map(({ field, value }) => (
-                <span
-                  key={`${field}-${value}`}
-                  className={`flex max-w-full items-center gap-1 rounded border py-1 pl-2 pr-1 text-xs ${FILTER_COLORS[field].chip}`}
-                >
-                  <span className="opacity-70">{FILTER_LABELS[field]}:</span>
-                  <span className="max-w-[10rem] truncate font-medium">{value}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeFilterValue(field, value)}
-                    title={`Remove ${value}`}
-                    className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+            {activeChips.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
+                {activeChips.map(({ field, value }) => (
+                  <span
+                    key={`${field}-${value}`}
+                    className={`flex max-w-full items-center gap-1 rounded border py-1 pl-2 pr-1 text-xs ${FILTER_COLORS[field].chip}`}
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+                    <span className="opacity-70">{FILTER_LABELS[field]}:</span>
+                    <span className="max-w-[9rem] truncate font-medium">{value}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFilterValue(field, value)}
+                      title={`Remove ${value}`}
+                      className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
 
-        <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-5 py-3">
-            <span className="text-xs font-medium uppercase tracking-widest text-slate-500">Global Coverage</span>
-            <div className="flex items-center gap-6">
+            <div className="grid grid-cols-2 gap-y-3 border-t border-slate-100 pt-3">
               <Stat value={summary.dealers} label="Dealers" />
               <Stat value={summary.manufacturers} label="Manufacturers" />
               <Stat value={summary.countries} label="Countries" />
               <Stat value={summary.pumpModels} label="Pump Models" />
             </div>
-          </div>
+          </aside>
 
-          <IntelligenceMap
-            highlightedCountries={highlightedCountries}
-            selectedCountries={filters.countries}
-            onCountryClick={handleCountryClick}
-          />
+          {/* Map */}
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3">
+              <span className="text-xs font-medium uppercase tracking-widest text-slate-500">Global Coverage Map</span>
+              <span className="text-[11px] text-slate-400">Click a country to filter</span>
+            </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-500">
-            <LegendDot color={MAP_COLORS.selected} label="Selected" />
-            <LegendDot color={MAP_COLORS.inResults} label="In results" />
-            <LegendDot color={MAP_COLORS.noMatch} label="No coverage" />
-            <span className="text-slate-300">·</span>
-            <span className="text-slate-400">Click a country to filter</span>
+            <IntelligenceMap
+              highlightedCountries={highlightedCountries}
+              selectedCountries={filters.countries}
+              onCountryClick={handleCountryClick}
+            />
+
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-500">
+              <LegendDot color={MAP_COLORS.selected} label="Selected" />
+              <LegendDot color={MAP_COLORS.inResults} label="In results" />
+              <LegendDot color={MAP_COLORS.noMatch} label="No coverage" />
+            </div>
           </div>
         </div>
 
