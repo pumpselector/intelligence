@@ -29,16 +29,44 @@ function ProducerDot({ producer }: { producer: string }) {
   );
 }
 
-function DealerInfoRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string | null }) {
+function DealerInfoRow({
+  icon: Icon,
+  label,
+  value,
+  href,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | null;
+  href?: string;
+}) {
+  const content = hasValue(value) ? value : "—";
+  const isMailto = href?.startsWith("mailto:");
+
   return (
-    <div className="flex items-start gap-2.5">
-      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={1.75} />
+    <div className="flex items-start gap-3">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.75} />
       <div className="min-w-0">
         <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-        <p className="truncate text-sm text-slate-700">{hasValue(value) ? value : "—"}</p>
+        {href && hasValue(value) ? (
+          <a
+            href={href}
+            target={isMailto ? undefined : "_blank"}
+            rel={isMailto ? undefined : "noopener noreferrer"}
+            className="block truncate text-base text-slate-700 transition-colors hover:text-indigo-600 hover:underline"
+          >
+            {content}
+          </a>
+        ) : (
+          <p className="truncate text-base text-slate-700">{content}</p>
+        )}
       </div>
     </div>
   );
+}
+
+function withProtocol(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
 function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void }) {
@@ -53,56 +81,67 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-xl rounded-lg border border-slate-200 bg-white shadow-xl"
+        className="relative w-full max-w-2xl rounded-lg border border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative border-b border-slate-100 px-6 pb-5 pt-6">
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute right-4 top-4 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X className="h-4 w-4" strokeWidth={1.75} />
-          </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+        >
+          <X className="h-4 w-4" strokeWidth={1.75} />
+        </button>
 
-          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 pr-6">
-            <div className="min-w-0">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Producer</span>
-              <div className="mt-1 flex items-center gap-2">
-                {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
-                <p className="truncate text-lg font-bold leading-tight text-slate-900">
-                  {hasValue(row.uretici) ? row.uretici : "—"}
-                </p>
-              </div>
-              <p className="mt-1.5 text-xs leading-snug text-slate-500">
-                {hasValue(row.uretici_adres) ? row.uretici_adres : "—"}
-              </p>
-              <p className="text-xs leading-snug text-slate-500">
-                {hasValue(row.uretici_ulke) ? row.uretici_ulke : "—"}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-5 px-8 py-8">
+          {/* Left: Producer only */}
+          <div className="min-w-0">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Producer</span>
+            <div className="mt-1.5 flex items-center gap-2">
+              {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
+              <p className="truncate text-xl font-bold leading-tight text-slate-900">
+                {hasValue(row.uretici) ? row.uretici : "—"}
               </p>
             </div>
+            <p className="mt-2 text-base leading-snug text-slate-500">
+              {hasValue(row.uretici_adres) ? row.uretici_adres : "—"}
+            </p>
+            <p className="text-base leading-snug text-slate-500">
+              {hasValue(row.uretici_ulke) ? row.uretici_ulke : "—"}
+            </p>
+          </div>
 
-            <div className="flex flex-col items-center pt-6">
-              <span className="mb-1.5 whitespace-nowrap rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
-                {hasValue(row.pump) ? row.pump : "Pump"}
-              </span>
-              <ArrowRight className="h-5 w-5 text-slate-300" strokeWidth={1.75} />
-            </div>
+          {/* Center: pump badge + arrow */}
+          <div className="flex flex-col items-center pt-6">
+            <span className="mb-2 whitespace-nowrap rounded-full border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700 shadow-sm">
+              {hasValue(row.pump) ? row.pump : "Pump"}
+            </span>
+            <ArrowRight className="h-8 w-8 text-slate-600" strokeWidth={2.25} />
+          </div>
 
-            <div className="min-w-0 text-right">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dealer</span>
-              <p className="mt-1 truncate text-lg font-bold leading-tight text-slate-900">
-                {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
-              </p>
+          {/* Right: Dealer name + all dealer info stacked below */}
+          <div className="min-w-0">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dealer</span>
+            <p className="mt-1.5 truncate text-xl font-bold leading-tight text-slate-900">
+              {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+            </p>
+
+            <div className="mt-4 space-y-3.5">
+              <DealerInfoRow icon={MapPin} label="Address" value={row.bayi_adres} />
+              <DealerInfoRow icon={Phone} label="Phone" value={row.bayi_telefon} />
+              <DealerInfoRow
+                icon={Mail}
+                label="Email"
+                value={row.bayi_email}
+                href={hasValue(row.bayi_email) ? `mailto:${row.bayi_email}` : undefined}
+              />
+              <DealerInfoRow
+                icon={Globe}
+                label="Website"
+                value={row.bayi_web}
+                href={hasValue(row.bayi_web) ? withProtocol(row.bayi_web) : undefined}
+              />
             </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3.5 px-6 py-5 sm:grid-cols-2">
-          <DealerInfoRow icon={MapPin} label="Address" value={row.bayi_adres} />
-          <DealerInfoRow icon={Phone} label="Phone" value={row.bayi_telefon} />
-          <DealerInfoRow icon={Mail} label="Email" value={row.bayi_email} />
-          <DealerInfoRow icon={Globe} label="Website" value={row.bayi_web} />
         </div>
       </div>
     </div>
