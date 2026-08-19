@@ -1,21 +1,38 @@
-import { Dealer, hasValue } from "./dealers";
+import { Dealer, hasValue, isRecentlyAdded } from "./dealers";
+
+export type StatusFilterValue = "all" | "active" | "new" | "inactive";
 
 export type Filters = {
   pumps: string[];
   producers: string[];
   countries: string[];
+  status: StatusFilterValue;
 };
 
-export const EMPTY_FILTERS: Filters = { pumps: [], producers: [], countries: [] };
+export const EMPTY_FILTERS: Filters = { pumps: [], producers: [], countries: [], status: "all" };
 
 export function isFiltersEmpty(filters: Filters): boolean {
-  return filters.pumps.length === 0 && filters.producers.length === 0 && filters.countries.length === 0;
+  return (
+    filters.pumps.length === 0 &&
+    filters.producers.length === 0 &&
+    filters.countries.length === 0 &&
+    filters.status === "all"
+  );
+}
+
+function matchesStatus(row: Dealer, status: StatusFilterValue): boolean {
+  if (status === "all") return true;
+  if (status === "inactive") return row.status === "inactive";
+  const isNew = row.status === "active" && isRecentlyAdded(row.first_seen);
+  if (status === "new") return isNew;
+  return row.status === "active" && !isNew; // "active"
 }
 
 function matches(row: Dealer, filters: Filters): boolean {
   if (filters.pumps.length > 0 && !(hasValue(row.pump) && filters.pumps.includes(row.pump))) return false;
   if (filters.producers.length > 0 && !(hasValue(row.uretici) && filters.producers.includes(row.uretici))) return false;
   if (filters.countries.length > 0 && !(hasValue(row.bayi_ulke) && filters.countries.includes(row.bayi_ulke))) return false;
+  if (!matchesStatus(row, filters.status)) return false;
   return true;
 }
 

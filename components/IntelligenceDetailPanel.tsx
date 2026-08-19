@@ -2,11 +2,55 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
-import { Dealer, hasValue } from "@/lib/dealers";
+import { Dealer, hasValue, isRecentlyAdded } from "@/lib/dealers";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 
 const PAGE_SIZE = 20;
+
+/** "gün.ay.yıl" — e.g. 05.03.2026 — used for the Inactive badge's "since" line. */
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}.${month}.${date.getFullYear()}`;
+}
+
+function StatusCell({ row }: { row: Dealer }) {
+  if (row.status === "inactive") {
+    return (
+      <div>
+        <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+          Inactive
+        </span>
+        {hasValue(row.last_seen) && (
+          <p className="mt-1 text-[10px] text-slate-400">since {formatDate(row.last_seen)}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (row.status === "active") {
+    if (isRecentlyAdded(row.first_seen)) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+          New
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+        Active
+      </span>
+    );
+  }
+
+  return <span className="text-slate-300">—</span>;
+}
 
 type SortColumn = "bayi_ulke" | "uretici" | "pump" | "bayi_adi";
 type SortDirection = "asc" | "desc";
@@ -251,10 +295,11 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
         <div className="max-h-[680px] overflow-auto">
           <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
             <colgroup>
+              <col className="w-[14%]" />
+              <col className="w-[25%]" />
               <col className="w-[16%]" />
-              <col className="w-[28%]" />
-              <col className="w-[20%]" />
-              <col className="w-[27%]" />
+              <col className="w-[22%]" />
+              <col className="w-[13%]" />
               <col className="w-[88px]" />
             </colgroup>
             <thead className="sticky top-0 z-10 bg-slate-50">
@@ -263,6 +308,9 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                 <SortHeader label="Manufacturer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Status
+                </th>
                 <th className="px-4 py-2.5">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -271,7 +319,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
             <tbody>
               {pageRows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
                     No matching records found.
                   </td>
                 </tr>
@@ -290,6 +338,9 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                   <td className="truncate px-4 py-2 text-slate-600">{hasValue(row.pump) ? row.pump : "—"}</td>
                   <td className="truncate px-4 py-2 font-medium text-slate-800">
                     {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+                  </td>
+                  <td className="px-4 py-2">
+                    <StatusCell row={row} />
                   </td>
                   <td className="px-4 py-2 text-right">
                     <button
