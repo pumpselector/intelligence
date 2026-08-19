@@ -314,7 +314,12 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
         </div>
 
         <div className="mt-6">
-          <IntelligenceDetailPanel dealers={filteredDealers} totalCount={dealers.length} search={search} />
+          <IntelligenceDetailPanel
+            dealers={filteredDealers}
+            totalCount={dealers.length}
+            search={search}
+            hasActiveFilters={hasActiveFilters}
+          />
         </div>
       </div>
     </div>

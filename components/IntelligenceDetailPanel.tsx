@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, FileSpreadsheet, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
 import { Dealer, hasValue, isRecentlyAdded } from "@/lib/dealers";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
@@ -17,8 +17,17 @@ function formatDate(value: string): string {
   return `${day}.${month}.${date.getFullYear()}`;
 }
 
+/** Human-readable status — "New" takes priority over "Active". Shared by the table badge and the Excel export. */
+function statusLabel(row: Dealer): "Active" | "New" | "Inactive" | "" {
+  if (row.status === "inactive") return "Inactive";
+  if (row.status === "active") return isRecentlyAdded(row.first_seen) ? "New" : "Active";
+  return "";
+}
+
 function StatusCell({ row }: { row: Dealer }) {
-  if (row.status === "inactive") {
+  const label = statusLabel(row);
+
+  if (label === "Inactive") {
     return (
       <div>
         <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
@@ -32,15 +41,16 @@ function StatusCell({ row }: { row: Dealer }) {
     );
   }
 
-  if (row.status === "active") {
-    if (isRecentlyAdded(row.first_seen)) {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-          New
-        </span>
-      );
-    }
+  if (label === "New") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+        New
+      </span>
+    );
+  }
+
+  if (label === "Active") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
@@ -50,6 +60,30 @@ function StatusCell({ row }: { row: Dealer }) {
   }
 
   return <span className="text-slate-300">—</span>;
+}
+
+/** Builds and downloads an .xlsx of the given (already filtered/searched) rows. */
+async function exportDealersToExcel(rows: Dealer[]) {
+  const XLSX = await import("xlsx");
+
+  const data = rows.map((row) => ({
+    Manufacturer: hasValue(row.uretici) ? row.uretici : "",
+    "Pump Type": hasValue(row.pump) ? row.pump : "",
+    Status: statusLabel(row),
+    Country: hasValue(row.bayi_ulke) ? row.bayi_ulke : "",
+    "Dealer Name": hasValue(row.bayi_adi) ? row.bayi_adi : "",
+    Address: hasValue(row.bayi_adres) ? row.bayi_adres : "",
+    Phone: hasValue(row.bayi_telefon) ? row.bayi_telefon : "",
+    Email: hasValue(row.bayi_email) ? row.bayi_email : "",
+    Website: hasValue(row.bayi_web) ? row.bayi_web : "",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Dealers");
+
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `pump-dealers-export-${today}.xlsx`);
 }
 
 type SortColumn = "bayi_ulke" | "uretici" | "pump" | "bayi_adi";
@@ -62,6 +96,8 @@ type IntelligenceDetailPanelProps = {
   totalCount: number;
   /** Free-text search, owned by the parent so it can live in the top filter bar. */
   search: string;
+  /** True when any sidebar filter or the search box is active — gates the Excel export button. */
+  hasActiveFilters: boolean;
 };
 
 function ProducerDot({ producer }: { producer: string }) {
@@ -222,20 +258,25 @@ function SortHeader({
 }) {
   const active = sortColumn === column;
   return (
-    <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+    <th className="px-4 py-2.5 text-left text-sm font-semibold uppercase tracking-wider text-slate-500">
       <button
         type="button"
         onClick={() => onSort(column)}
         className={`flex items-center gap-1 hover:text-slate-800 ${active ? "text-slate-900" : ""}`}
       >
         {label}
-        <span className="text-[10px]">{active ? (sortDirection === "asc" ? "▲" : "▼") : "⇅"}</span>
+        <span className="text-xs">{active ? (sortDirection === "asc" ? "▲" : "▼") : "⇅"}</span>
       </button>
     </th>
   );
 }
 
-export default function IntelligenceDetailPanel({ dealers, totalCount, search }: IntelligenceDetailPanelProps) {
+export default function IntelligenceDetailPanel({
+  dealers,
+  totalCount,
+  search,
+  hasActiveFilters,
+}: IntelligenceDetailPanelProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("bayi_ulke");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
@@ -277,29 +318,42 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
   return (
     <div>
       <div className="mb-2.5 flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          {search.trim() ? (
-            <>
-              <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> of{" "}
-              {totalCount.toLocaleString()} listings
-            </>
-          ) : (
-            <>
-              <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> listings
-            </>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-slate-500">
+            {search.trim() ? (
+              <>
+                <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> of{" "}
+                {totalCount.toLocaleString()} listings
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> listings
+              </>
+            )}
+          </p>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => exportDealersToExcel(sorted)}
+              className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Export
+            </button>
           )}
-        </p>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200">
         <div className="max-h-[680px] overflow-auto">
           <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
             <colgroup>
-              <col className="w-[14%]" />
-              <col className="w-[25%]" />
-              <col className="w-[16%]" />
-              <col className="w-[22%]" />
               <col className="w-[13%]" />
+              <col className="w-[24%]" />
+              <col className="w-[15%]" />
+              <col className="w-[27%]" />
+              <col className="w-[12%]" />
               <col className="w-[88px]" />
             </colgroup>
             <thead className="sticky top-0 z-10 bg-slate-50">
@@ -308,10 +362,10 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                 <SortHeader label="Manufacturer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <th className="py-2.5 pl-4 pr-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500">
                   Status
                 </th>
-                <th className="px-4 py-2.5">
+                <th className="py-2.5 pl-2 pr-4">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
@@ -325,7 +379,7 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                 </tr>
               )}
               {pageRows.map((row) => (
-                <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
+                <tr key={row.id} className="border-t border-slate-100 odd:bg-white even:bg-slate-50 hover:bg-slate-100/80">
                   <td className="truncate px-4 py-2 text-slate-600">{hasValue(row.bayi_ulke) ? row.bayi_ulke : "—"}</td>
                   <td className="px-4 py-2">
                     <span className="flex min-w-0 items-center gap-2">
@@ -339,10 +393,10 @@ export default function IntelligenceDetailPanel({ dealers, totalCount, search }:
                   <td className="truncate px-4 py-2 font-medium text-slate-800">
                     {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="py-2 pl-4 pr-2">
                     <StatusCell row={row} />
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="py-2 pl-2 pr-4 text-right">
                     <button
                       type="button"
                       onClick={() => setDetailRowId(row.id)}
