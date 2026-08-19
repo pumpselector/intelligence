@@ -38,15 +38,6 @@ export default function Header() {
             );
           })}
         </nav>
-
-        {pathname !== "/intelligence" && (
-          <Link
-            href="/intelligence"
-            className="inline-flex items-center rounded-md bg-slate-900 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-800"
-          >
-            Access Database
-          </Link>
-        )}
       </div>
     </header>
   );

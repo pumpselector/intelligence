@@ -8,17 +8,14 @@ export default function Hero() {
 
       <div className="relative mx-auto grid min-h-[85vh] w-full max-w-7xl grid-cols-1 items-center gap-16 px-6 py-20 lg:grid-cols-2 lg:px-8">
         <div className="flex flex-col items-start text-left">
-          <span className="mb-6 rounded-full border border-slate-300 bg-slate-100 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-slate-600">
-            Pump Industry Intelligence
-          </span>
-
           <h1 className="text-6xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-7xl">
-            Solve the Global Pump Network
+            Know the Global Pump Network. Before Your Competitors Do.
           </h1>
 
           <p className="mt-6 max-w-xl text-lg text-slate-600 sm:text-xl">
-            Access pump manufacturers, their dealers, and country coverage —
-            do not miss any connection in the pump industry.
+            Monitor distributor appointments, changes, and market movements across the
+            pump industry. Find verified distributor contacts, discover new dealers, and
+            stay informed about important changes through our news and real-time alerts.
           </p>
 
           <Link
