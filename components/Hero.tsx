@@ -9,13 +9,12 @@ export default function Hero() {
       <div className="relative mx-auto grid min-h-[85vh] w-full max-w-7xl grid-cols-1 items-center gap-16 px-6 py-20 lg:grid-cols-2 lg:px-8">
         <div className="flex flex-col items-start text-left">
           <h1 className="text-6xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-7xl">
-            Know the Global Pump Network. Before Your Competitors Do.
+            The Pump Dealer Network, Tracked.
           </h1>
 
           <p className="mt-6 max-w-xl text-lg text-slate-600 sm:text-xl">
             Monitor distributor appointments, changes, and market movements across the
-            pump industry. Find verified distributor contacts, discover new dealers, and
-            stay informed about important changes through our news and real-time alerts.
+            pump industry. Get notified as soon as important changes happen.
           </p>
 
           <Link
