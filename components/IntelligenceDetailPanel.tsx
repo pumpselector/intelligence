@@ -133,12 +133,12 @@ function DealerInfoRow({
             href={href}
             target={isMailto ? undefined : "_blank"}
             rel={isMailto ? undefined : "noopener noreferrer"}
-            className="block truncate text-base text-slate-700 transition-colors hover:text-indigo-600 hover:underline"
+            className="block break-words text-base text-slate-700 transition-colors hover:text-indigo-600 hover:underline"
           >
             {content}
           </a>
         ) : (
-          <p className="truncate text-base text-slate-700">{content}</p>
+          <p className="break-words text-base text-slate-700">{content}</p>
         )}
       </div>
     </div>
@@ -161,7 +161,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-2xl rounded-lg border border-slate-200 bg-white shadow-xl"
+        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -176,9 +176,9 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
           {/* Left: Producer only */}
           <div className="min-w-0">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Producer</span>
-            <div className="mt-1.5 flex items-center gap-2">
-              {hasValue(row.uretici) && <ProducerDot producer={row.uretici} />}
-              <p className="truncate text-xl font-bold leading-tight text-slate-900">
+            <div className="mt-1.5 flex items-start gap-2">
+              {hasValue(row.uretici) && <span className="mt-1.5"><ProducerDot producer={row.uretici} /></span>}
+              <p className="break-words text-xl font-bold leading-tight text-slate-900">
                 {hasValue(row.uretici) ? row.uretici : "—"}
               </p>
             </div>
@@ -201,7 +201,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
           {/* Right: Dealer name + all dealer info stacked below */}
           <div className="min-w-0">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dealer</span>
-            <p className="mt-1.5 truncate text-xl font-bold leading-tight text-slate-900">
+            <p className="mt-1.5 break-words text-xl font-bold leading-tight text-slate-900">
               {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
             </p>
 
