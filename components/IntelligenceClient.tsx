@@ -19,7 +19,7 @@ const MULTI_FILTER_LABELS: Record<"producers" | "countries" | "pumps", string> =
   pumps: "Product Type",
 };
 
-const MULTI_FILTER_ORDER: ("producers" | "countries" | "pumps")[] = ["producers", "countries", "pumps"];
+const MULTI_FILTER_ORDER: ("producers" | "countries" | "pumps")[] = ["pumps", "producers", "countries"];
 
 /** Per-filter pastel accent — trigger button when active, and the matching chip below. */
 const MULTI_FILTER_COLORS: Record<"producers" | "countries" | "pumps", { trigger: string; chip: string }> = {
@@ -162,6 +162,13 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
 
             <div className="flex flex-col gap-2">
               <MultiSelectFilter
+                label="Product Type"
+                options={pumpOptions}
+                selected={filters.pumps}
+                onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
+                activeClassName={MULTI_FILTER_COLORS.pumps.trigger}
+              />
+              <MultiSelectFilter
                 label="Manufacturer"
                 options={producerOptions}
                 selected={filters.producers}
@@ -175,13 +182,6 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
                 selected={filters.countries}
                 onChange={(next) => setFilters((f) => ({ ...f, countries: next }))}
                 activeClassName={MULTI_FILTER_COLORS.countries.trigger}
-              />
-              <MultiSelectFilter
-                label="Product Type"
-                options={pumpOptions}
-                selected={filters.pumps}
-                onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
-                activeClassName={MULTI_FILTER_COLORS.pumps.trigger}
               />
             </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, FileSpreadsheet, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
+import { ArrowRight, FileSpreadsheet, Flag, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
 import { Dealer, hasValue } from "@/lib/dealers";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
@@ -166,6 +166,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
 
             <div className="mt-4 space-y-3.5">
               <DealerInfoRow icon={MapPin} label="Address" value={row.bayi_adres} />
+              <DealerInfoRow icon={Flag} label="Country" value={row.bayi_ulke} />
               <DealerInfoRow icon={Phone} label="Phone" value={row.bayi_telefon} />
               <DealerInfoRow icon={Mail} label="Email" value={row.bayi_email} hrefFor={(email) => `mailto:${email}`} />
               <DealerInfoRow icon={Globe} label="Website" value={row.bayi_web} hrefFor={withProtocol} />
