@@ -58,32 +58,46 @@ function DealerInfoRow({
   icon: Icon,
   label,
   value,
-  href,
+  hrefFor,
 }: {
   icon: LucideIcon;
   label: string;
   value: string | null;
-  href?: string;
+  /** When given, each ";"-separated part of `value` becomes its own clickable link. */
+  hrefFor?: (part: string) => string;
 }) {
-  const content = hasValue(value) ? value : "—";
-  const isMailto = href?.startsWith("mailto:");
+  // Some records pack multiple emails/websites into one ";"-separated string.
+  const parts = hrefFor && hasValue(value) ? value.split(";").map((p) => p.trim()).filter((p) => p.length > 0) : [];
 
   return (
     <div className="flex items-start gap-3">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.75} />
       <div className="min-w-0">
         <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-        {href && hasValue(value) ? (
-          <a
-            href={href}
-            target={isMailto ? undefined : "_blank"}
-            rel={isMailto ? undefined : "noopener noreferrer"}
-            className="block break-words text-base text-slate-700 transition-colors hover:text-indigo-600 hover:underline"
-          >
-            {content}
-          </a>
+        {hrefFor ? (
+          parts.length === 0 ? (
+            <p className="break-words text-base text-slate-700">—</p>
+          ) : (
+            <div className="flex flex-col">
+              {parts.map((part, i) => {
+                const href = hrefFor(part);
+                const isMailto = href.startsWith("mailto:");
+                return (
+                  <a
+                    key={i}
+                    href={href}
+                    target={isMailto ? undefined : "_blank"}
+                    rel={isMailto ? undefined : "noopener noreferrer"}
+                    className="block break-words text-base text-slate-700 transition-colors hover:text-indigo-600 hover:underline"
+                  >
+                    {part}
+                  </a>
+                );
+              })}
+            </div>
+          )
         ) : (
-          <p className="break-words text-base text-slate-700">{content}</p>
+          <p className="break-words text-base text-slate-700">{hasValue(value) ? value : "—"}</p>
         )}
       </div>
     </div>
@@ -153,18 +167,8 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
             <div className="mt-4 space-y-3.5">
               <DealerInfoRow icon={MapPin} label="Address" value={row.bayi_adres} />
               <DealerInfoRow icon={Phone} label="Phone" value={row.bayi_telefon} />
-              <DealerInfoRow
-                icon={Mail}
-                label="Email"
-                value={row.bayi_email}
-                href={hasValue(row.bayi_email) ? `mailto:${row.bayi_email}` : undefined}
-              />
-              <DealerInfoRow
-                icon={Globe}
-                label="Website"
-                value={row.bayi_web}
-                href={hasValue(row.bayi_web) ? withProtocol(row.bayi_web) : undefined}
-              />
+              <DealerInfoRow icon={Mail} label="Email" value={row.bayi_email} hrefFor={(email) => `mailto:${email}`} />
+              <DealerInfoRow icon={Globe} label="Website" value={row.bayi_web} hrefFor={withProtocol} />
             </div>
           </div>
         </div>
