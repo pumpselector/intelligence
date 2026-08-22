@@ -79,10 +79,14 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
   // without the user having to scroll past the map to the table.
   const visibleDealers = useMemo(() => searchDealers(filteredDealers, search), [filteredDealers, search]);
 
-  const highlightedCountries = useMemo(() => {
-    if (filters.producers.length === 0) return [];
-    return [...new Set(filteredDealers.map((d) => d.bayi_ulke).filter(hasValue))];
-  }, [filteredDealers, filters.producers]);
+  // Countries to highlight on the map: whatever's currently visible in the
+  // table (all active filters + search combined). With nothing active,
+  // `visibleDealers` is the full dataset, so every country with at least one
+  // record ends up highlighted by default.
+  const highlightedCountries = useMemo(
+    () => [...new Set(visibleDealers.map((d) => d.bayi_ulke).filter(hasValue))],
+    [visibleDealers]
+  );
 
   const summary = useMemo(
     () => ({
