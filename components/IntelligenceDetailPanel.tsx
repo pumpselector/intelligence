@@ -2,65 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, FileSpreadsheet, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
-import { Dealer, hasValue, isRecentlyAdded } from "@/lib/dealers";
+import { Dealer, hasValue } from "@/lib/dealers";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 
 const PAGE_SIZE = 20;
-
-/** "gün.ay.yıl" — e.g. 05.03.2026 — used for the Inactive badge's "since" line. */
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${day}.${month}.${date.getFullYear()}`;
-}
-
-/** Human-readable status — "New" takes priority over "Active". Shared by the table badge and the Excel export. */
-function statusLabel(row: Dealer): "Active" | "New" | "Inactive" | "" {
-  if (row.status === "inactive") return "Inactive";
-  if (row.status === "active") return isRecentlyAdded(row.first_seen) ? "New" : "Active";
-  return "";
-}
-
-function StatusCell({ row }: { row: Dealer }) {
-  const label = statusLabel(row);
-
-  if (label === "Inactive") {
-    return (
-      <div>
-        <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-          Inactive
-        </span>
-        {hasValue(row.last_seen) && (
-          <p className="mt-1 text-[10px] text-slate-400">since {formatDate(row.last_seen)}</p>
-        )}
-      </div>
-    );
-  }
-
-  if (label === "New") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-        New
-      </span>
-    );
-  }
-
-  if (label === "Active") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-        Active
-      </span>
-    );
-  }
-
-  return <span className="text-slate-300">—</span>;
-}
 
 /** Builds and downloads an .xlsx of the given (already filtered/searched) rows. */
 async function exportDealersToExcel(rows: Dealer[]) {
@@ -69,7 +15,6 @@ async function exportDealersToExcel(rows: Dealer[]) {
   const data = rows.map((row) => ({
     Manufacturer: hasValue(row.uretici) ? row.uretici : "",
     "Pump Type": hasValue(row.pump) ? row.pump : "",
-    Status: statusLabel(row),
     Country: hasValue(row.bayi_ulke) ? row.bayi_ulke : "",
     "Dealer Name": hasValue(row.bayi_adi) ? row.bayi_adi : "",
     Address: hasValue(row.bayi_adres) ? row.bayi_adres : "",
@@ -349,11 +294,10 @@ export default function IntelligenceDetailPanel({
         <div className="max-h-[680px] overflow-auto">
           <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
             <colgroup>
-              <col className="w-[13%]" />
-              <col className="w-[24%]" />
               <col className="w-[15%]" />
               <col className="w-[27%]" />
-              <col className="w-[12%]" />
+              <col className="w-[17%]" />
+              <col className="w-[31%]" />
               <col className="w-[88px]" />
             </colgroup>
             <thead className="sticky top-0 z-10 bg-slate-50">
@@ -362,9 +306,6 @@ export default function IntelligenceDetailPanel({
                 <SortHeader label="Manufacturer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <th className="py-2.5 pl-4 pr-2 text-left text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  Status
-                </th>
                 <th className="py-2.5 pl-2 pr-4">
                   <span className="sr-only">Actions</span>
                 </th>
@@ -373,7 +314,7 @@ export default function IntelligenceDetailPanel({
             <tbody>
               {pageRows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-slate-400">
                     No matching records found.
                   </td>
                 </tr>
@@ -392,9 +333,6 @@ export default function IntelligenceDetailPanel({
                   <td className="truncate px-4 py-2 text-slate-600">{hasValue(row.pump) ? row.pump : "—"}</td>
                   <td className="truncate px-4 py-2 font-medium text-slate-800">
                     {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
-                  </td>
-                  <td className="py-2 pl-4 pr-2">
-                    <StatusCell row={row} />
                   </td>
                   <td className="py-2 pl-2 pr-4 text-right">
                     <button

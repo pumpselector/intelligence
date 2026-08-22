@@ -1,8 +1,8 @@
-// Cleans up dealers.bayi_adres for rows that could not be geocoded yet
-// (bayi_lat IS NULL) — strips embedded websites, phone numbers and
-// tax/registration codes out of the address text, and tries to repair
-// mangled UTF-8 (mojibake). Extracted websites/phones are only written
-// back if the corresponding column is currently empty.
+// Cleans up dealers.bayi_adres for all dealer rows — strips embedded
+// websites, phone numbers and tax/registration codes out of the address
+// text, and tries to repair mangled UTF-8 (mojibake). Extracted
+// websites/phones are only written back if the corresponding column is
+// currently empty.
 //
 // Three modes:
 //   node scripts/clean-addresses.mjs                  dry-run: prints
@@ -169,7 +169,7 @@ function cleanAddress(rawAddress) {
   return { address: text, website: website.website, phone: phone.phone };
 }
 
-async function fetchUngeocodedDealers() {
+async function fetchAllDealers() {
   const rows = [];
   let from = 0;
 
@@ -177,7 +177,6 @@ async function fetchUngeocodedDealers() {
     const { data, error } = await supabase
       .from("dealers")
       .select("id,bayi_adi,bayi_adres,bayi_telefon,bayi_web")
-      .is("bayi_lat", null)
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
 
@@ -389,8 +388,8 @@ async function applyFromCsv() {
 async function runClean() {
   console.log(APPLY ? "MOD: --apply (Supabase guncellenecek)\n" : "MOD: dry-run (onizleme + CSV raporu, hicbir sey yazilmayacak)\n");
 
-  const rows = await fetchUngeocodedDealers();
-  console.log(`bayi_lat IS NULL olan ${rows.length} satir bulundu.\n`);
+  const rows = await fetchAllDealers();
+  console.log(`${rows.length} satir bulundu.\n`);
 
   let changedCount = 0;
   let skippedEmpty = 0;

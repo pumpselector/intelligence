@@ -15,6 +15,7 @@ export const DB_TO_GEO_NAME: Record<string, string> = {
   "Bosnia and Herzegovina": "Bosnia and Herz.",
   "Democratic Republic of the Congo": "Dem. Rep. Congo",
   "Dominican Republic": "Dominican Rep.",
+  "Eswatini": "eSwatini",
   "Ivory Coast": "Côte d'Ivoire",
   "North Macedonia": "Macedonia",
   "Republic of the Congo": "Congo",

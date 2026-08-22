@@ -2,15 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Dealer, hasValue } from "@/lib/dealers";
-import {
-  EMPTY_FILTERS,
-  Filters,
-  StatusFilterValue,
-  filterDealers,
-  isFiltersEmpty,
-  optionsFor,
-  searchDealers,
-} from "@/lib/filters";
+import { EMPTY_FILTERS, Filters, filterDealers, isFiltersEmpty, optionsFor, searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 import MultiSelectFilter from "@/components/ui/MultiSelectFilter";
 import IntelligenceDetailPanel from "@/components/IntelligenceDetailPanel";
@@ -43,25 +35,6 @@ const MULTI_FILTER_COLORS: Record<"producers" | "countries" | "pumps", { trigger
     trigger: "border-amber-200 bg-amber-50 text-slate-900",
     chip: "border-amber-200 bg-amber-50 text-amber-700",
   },
-};
-
-const STATUS_OPTIONS: { value: StatusFilterValue; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "active", label: "Active" },
-  { value: "new", label: "New (added in last 30 days)" },
-  { value: "inactive", label: "Not Active (not listed anymore)" },
-];
-
-const STATUS_LABELS: Record<StatusFilterValue, string> = {
-  all: "All",
-  active: "Active",
-  new: "New",
-  inactive: "Not Active",
-};
-
-const STATUS_COLORS = {
-  trigger: "border-violet-200 bg-violet-50 text-slate-900",
-  chip: "border-violet-200 bg-violet-50 text-violet-700",
 };
 
 function SearchIcon() {
@@ -111,23 +84,14 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
     return [...new Set(filteredDealers.map((d) => d.bayi_ulke).filter(hasValue))];
   }, [filteredDealers, filters.producers]);
 
-  // The "Dealers" KPI always reflects only currently-active dealers, regardless of the
-  // Status dropdown — inactive listings are history, not live network, so they shouldn't
-  // inflate the headline count even when "All" or "Not Active" is selected.
-  const activeDealerCount = useMemo(() => {
-    const withoutStatusFilter = filterDealers(dealers, { ...filters, status: "all" });
-    const activeOnly = withoutStatusFilter.filter((d) => d.status === "active");
-    return new Set(searchDealers(activeOnly, search).map((d) => d.bayi_adi).filter(hasValue)).size;
-  }, [dealers, filters, search]);
-
   const summary = useMemo(
     () => ({
-      dealers: activeDealerCount,
+      dealers: new Set(visibleDealers.map((d) => d.bayi_adi).filter(hasValue)).size,
       manufacturers: new Set(visibleDealers.map((d) => d.uretici).filter(hasValue)).size,
       countries: new Set(visibleDealers.map((d) => d.bayi_ulke).filter(hasValue)).size,
       pumpModels: new Set(visibleDealers.map((d) => d.pump).filter(hasValue)).size,
     }),
-    [visibleDealers, activeDealerCount]
+    [visibleDealers]
   );
 
   const hasActiveFilters = !isFiltersEmpty(filters) || search.trim().length > 0;
@@ -219,26 +183,9 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
                 onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
                 activeClassName={MULTI_FILTER_COLORS.pumps.trigger}
               />
-
-              <select
-                aria-label="Status"
-                value={filters.status}
-                onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value as StatusFilterValue }))}
-                className={`w-full rounded-md border px-3 py-2 text-sm outline-none transition-colors ${
-                  filters.status !== "all"
-                    ? STATUS_COLORS.trigger
-                    : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
-                }`}
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.value === "all" ? "Status: All" : opt.label}
-                  </option>
-                ))}
-              </select>
             </div>
 
-            {(MULTI_FILTER_ORDER.some((field) => filters[field].length > 0) || filters.status !== "all") && (
+            {MULTI_FILTER_ORDER.some((field) => filters[field].length > 0) && (
               <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
                 {MULTI_FILTER_ORDER.map((field) =>
                   filters[field].length > 0 ? (
@@ -262,24 +209,6 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
                       ))}
                     </div>
                   ) : null
-                )}
-                {filters.status !== "all" && (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`flex max-w-full items-center gap-1 rounded border py-1 pl-2 pr-1 text-xs ${STATUS_COLORS.chip}`}
-                    >
-                      <span className="opacity-70">Status:</span>
-                      <span className="max-w-[9rem] truncate font-medium">{STATUS_LABELS[filters.status]}</span>
-                      <button
-                        type="button"
-                        onClick={() => setFilters((f) => ({ ...f, status: "all" }))}
-                        title="Remove status filter"
-                        className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full hover:bg-black/10"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  </div>
                 )}
               </div>
             )}
