@@ -120,7 +120,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
       <div
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl"
+        className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -131,7 +131,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
           <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-5 px-8 py-8">
+        <div className="grid grid-cols-[2fr_auto_3fr] items-start gap-5 px-8 py-8">
           {/* Left: Producer only */}
           <div className="min-w-0">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Producer</span>
