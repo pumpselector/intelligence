@@ -1,38 +1,13 @@
 import { supabase } from "@/lib/supabase";
 
-export type ChangeType =
-  | "eklendi"
-  | "silindi"
-  | "telefon_degisti"
-  | "email_degisti"
-  | "web_degisti"
-  | "adres_degisti"
-  | "yetkili_degisti";
-
 export type DistributorNews = {
   id: number;
   haber_tarihi: string;
   uretici: string | null;
   bayi_adi: string | null;
   ulke: string | null;
-  degisiklik_turu: ChangeType;
-  eski_deger: string | null;
-  yeni_deger: string | null;
+  degisiklik_turu: string;
   detay: string | null;
-  yayinlandi: boolean;
-  dealer_code: string | null;
-  relationship_code: string | null;
-};
-
-/** DB enum -> English label shown in the UI. */
-export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
-  eklendi: "Distributor Added",
-  silindi: "Distributor Removed",
-  telefon_degisti: "Phone Number Updated",
-  email_degisti: "Email Updated",
-  web_degisti: "Website Updated",
-  adres_degisti: "Address Updated",
-  yetkili_degisti: "Contact Person Updated",
 };
 
 const MONTH_NAMES = [
@@ -50,32 +25,23 @@ const MONTH_NAMES = [
   "December",
 ];
 
-/** "August 19, 2026" — parses the leading YYYY-MM-DD directly so the date never shifts a day under a non-UTC local timezone. */
+/** "August 19, 2026" — haber_tarihi is a plain "date" column (no time/timezone). */
 export function formatNewsDate(value: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-  if (match) {
-    const [, year, month, day] = match;
-    return `${MONTH_NAMES[Number(month) - 1]} ${Number(day)}, ${year}`;
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const [year, month, day] = value.split("-").map(Number);
+  return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
 }
 
 const PAGE_SIZE = 1000;
 
-/** Published updates, newest first. */
-export async function getPublishedNews(): Promise<DistributorNews[]> {
+/** All distributor news updates, newest first. */
+export async function getAllNews(): Promise<DistributorNews[]> {
   const rows: DistributorNews[] = [];
   let from = 0;
 
   while (true) {
     const { data, error } = await supabase
       .from("distributor_news")
-      .select(
-        "id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,eski_deger,yeni_deger,detay,yayinlandi,dealer_code,relationship_code"
-      )
-      .eq("yayinlandi", true)
+      .select("id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,detay")
       .order("haber_tarihi", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 
