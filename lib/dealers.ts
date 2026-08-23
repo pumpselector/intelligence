@@ -52,9 +52,13 @@ export function hasValue(value: string | null | undefined): value is string {
   return trimmed !== "" && trimmed !== "." && trimmed !== "-";
 }
 
-/** True when a dealer has a `removed` note whose `removed_date` is still in the future. */
+/**
+ * True when a dealer has a `removed` note that's still active: no `removed_date`
+ * means the note never expires, otherwise it's active until that date passes.
+ */
 export function hasActiveNote(dealer: Pick<Dealer, "removed" | "removed_date">): boolean {
-  if (!hasValue(dealer.removed) || !dealer.removed_date) return false;
+  if (!hasValue(dealer.removed)) return false;
+  if (!dealer.removed_date) return true;
   const removedDate = new Date(dealer.removed_date);
   return !Number.isNaN(removedDate.getTime()) && removedDate.getTime() > Date.now();
 }
