@@ -3,26 +3,37 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-[#F0F9FD]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.10),_transparent_55%)]" />
-
-      <div className="relative mx-auto grid min-h-[85vh] w-full max-w-7xl grid-cols-1 items-start gap-16 px-6 py-20 lg:grid-cols-2 lg:px-8">
+    <section className="bg-[#F0F9FD]">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-[1fr_1.05fr] lg:gap-10 lg:px-8 lg:py-20">
         <div className="flex flex-col items-start text-left">
-          <h1 className="text-5xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-6xl">
-            The Pump Dealer Network, Tracked.
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#53657A]">
+            Industrial Intelligence
+          </span>
+
+          <h1 className="mt-4 text-[2.5rem] font-semibold leading-[1.12] tracking-tight text-[#16243D] sm:text-5xl">
+            Track the Global
+            <br />
+            Pump Distribution Network.
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg text-slate-600 sm:text-xl">
-            Monitor distributor appointments, changes, and market movements across the
-            pump industry. Get notified as soon as important changes happen.
+          <p className="mt-5 max-w-md text-base leading-relaxed text-[#53657A] sm:text-lg">
+            Monitor pump manufacturers, distributors and network changes across markets worldwide.
           </p>
 
-          <Link
-            href="/intelligence"
-            className="mt-10 inline-flex items-center justify-center rounded-md bg-amber-400 px-8 py-4 text-sm font-bold uppercase tracking-wide text-slate-900 shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-300"
-          >
-            Access Database
-          </Link>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link
+              href="/intelligence"
+              className="inline-flex items-center justify-center rounded-md bg-[#F5A900] px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[#16243D] transition-colors hover:bg-[#DE9800]"
+            >
+              Explore Database
+            </Link>
+            <Link
+              href="/news"
+              className="inline-flex items-center justify-center rounded-md border border-[#DCE6ED] bg-white px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[#16243D] transition-colors hover:border-[#16243D]/25 hover:bg-[#F3F9FC]"
+            >
+              Latest Intelligence
+            </Link>
+          </div>
         </div>
 
         <div className="relative">
@@ -32,7 +43,7 @@ export default function Hero() {
             width={1693}
             height={929}
             priority
-            className="h-auto w-full rounded-2xl"
+            className="h-auto w-full"
           />
         </div>
       </div>

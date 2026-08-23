@@ -127,9 +127,6 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
           <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900 sm:text-[28px]">
             Global Pump Dealer Network
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Explore manufacturers, authorized distributors and pump dealers across markets worldwide.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[350px_1fr]">
