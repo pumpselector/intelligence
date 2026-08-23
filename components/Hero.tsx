@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-white">
+    <section className="relative overflow-hidden bg-[#F0F9FD]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.10),_transparent_55%)]" />
 
       <div className="relative mx-auto grid min-h-[85vh] w-full max-w-7xl grid-cols-1 items-start gap-16 px-6 py-20 lg:grid-cols-2 lg:px-8">
