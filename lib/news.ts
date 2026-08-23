@@ -25,10 +25,16 @@ const MONTH_NAMES = [
   "December",
 ];
 
-/** "August 19, 2026" — haber_tarihi is a plain "date" column (no time/timezone). */
+/**
+ * "August 19, 2026" — haber_tarihi is a date column, but Supabase serializes it
+ * as "YYYY-MM-DDT00:00:00+00:00". Parse the leading YYYY-MM-DD directly instead
+ * of `new Date(value)`, so the day never shifts under a non-UTC local timezone.
+ */
 export function formatNewsDate(value: string): string {
-  const [year, month, day] = value.split("-").map(Number);
-  return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  const [, year, month, day] = match;
+  return `${MONTH_NAMES[Number(month) - 1]} ${Number(day)}, ${year}`;
 }
 
 const PAGE_SIZE = 1000;
