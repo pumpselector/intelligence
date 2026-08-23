@@ -13,6 +13,8 @@ export type Dealer = {
   pump: string | null;
   uretici_adres: string | null;
   uretici_ulke: string | null;
+  removed: string | null;
+  removed_date: string | null;
 };
 
 const PAGE_SIZE = 1000;
@@ -25,7 +27,7 @@ export async function getAllDealers(): Promise<Dealer[]> {
     const { data, error } = await supabase
       .from("dealers")
       .select(
-        "id,created_at,uretici,bayi_adi,bayi_ulke,bayi_adres,bayi_telefon,bayi_email,bayi_web,pump,uretici_adres,uretici_ulke"
+        "id,created_at,uretici,bayi_adi,bayi_ulke,bayi_adres,bayi_telefon,bayi_email,bayi_web,pump,uretici_adres,uretici_ulke,removed,removed_date"
       )
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
@@ -48,4 +50,11 @@ export function hasValue(value: string | null | undefined): value is string {
   if (!value) return false;
   const trimmed = value.trim();
   return trimmed !== "" && trimmed !== "." && trimmed !== "-";
+}
+
+/** True when a dealer has a `removed` note whose `removed_date` is still in the future. */
+export function hasActiveNote(dealer: Pick<Dealer, "removed" | "removed_date">): boolean {
+  if (!hasValue(dealer.removed) || !dealer.removed_date) return false;
+  const removedDate = new Date(dealer.removed_date);
+  return !Number.isNaN(removedDate.getTime()) && removedDate.getTime() > Date.now();
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, FileSpreadsheet, Flag, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
-import { Dealer, hasValue } from "@/lib/dealers";
+import { Dealer, hasActiveNote, hasValue } from "@/lib/dealers";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 
@@ -44,6 +44,14 @@ type IntelligenceDetailPanelProps = {
   /** True when any sidebar filter or the search box is active — gates the Excel export button. */
   hasActiveFilters: boolean;
 };
+
+function NoteBadge({ text }: { text: string }) {
+  return (
+    <sup className="shrink-0 whitespace-nowrap rounded border border-amber-200 bg-amber-50 px-1 py-0.5 text-[9px] font-medium uppercase leading-none tracking-wide text-amber-700">
+      {text}
+    </sup>
+  );
+}
 
 function ProducerDot({ producer }: { producer: string }) {
   return (
@@ -160,8 +168,9 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
           {/* Right: Dealer name + all dealer info stacked below */}
           <div className="min-w-0">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dealer</span>
-            <p className="mt-1.5 break-words text-xl font-bold leading-tight text-slate-900">
-              {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+            <p className="mt-1.5 flex flex-wrap items-start gap-1.5 break-words text-xl font-bold leading-tight text-slate-900">
+              <span>{hasValue(row.bayi_adi) ? row.bayi_adi : "—"}</span>
+              {hasActiveNote(row) && <NoteBadge text={row.removed!} />}
             </p>
 
             <div className="mt-4 space-y-3.5">
@@ -336,8 +345,11 @@ export default function IntelligenceDetailPanel({
                     </span>
                   </td>
                   <td className="truncate px-4 py-2 text-slate-600">{hasValue(row.pump) ? row.pump : "—"}</td>
-                  <td className="truncate px-4 py-2 font-medium text-slate-800">
-                    {hasValue(row.bayi_adi) ? row.bayi_adi : "—"}
+                  <td className="px-4 py-2 font-medium text-slate-800">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="min-w-0 truncate">{hasValue(row.bayi_adi) ? row.bayi_adi : "—"}</span>
+                      {hasActiveNote(row) && <NoteBadge text={row.removed!} />}
+                    </span>
                   </td>
                   <td className="py-2 pl-2 pr-4 text-right">
                     <button
