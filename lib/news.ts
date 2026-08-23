@@ -7,6 +7,7 @@ export type DistributorNews = {
   bayi_adi: string | null;
   ulke: string | null;
   degisiklik_turu: string;
+  pump: string | null;
   detay: string | null;
 };
 
@@ -47,7 +48,7 @@ export async function getAllNews(): Promise<DistributorNews[]> {
   while (true) {
     const { data, error } = await supabase
       .from("distributor_news")
-      .select("id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,detay")
+      .select("id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,pump,detay")
       .order("haber_tarihi", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 
