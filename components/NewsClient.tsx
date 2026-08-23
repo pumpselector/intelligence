@@ -4,12 +4,20 @@ import { useEffect, useMemo, useState } from "react";
 import { hasValue } from "@/lib/dealers";
 import { DistributorNews, formatNewsDate } from "@/lib/news";
 import { getProducerColor } from "@/lib/producerColor";
+import MultiSelectFilter from "@/components/ui/MultiSelectFilter";
 
 type NewsClientProps = {
   news: DistributorNews[];
 };
 
 const PAGE_SIZE = 20;
+
+/** Per-filter pastel accent — trigger button when active. */
+const FILTER_COLORS = {
+  manufacturers: "border-sky-200 bg-sky-50 text-slate-900",
+  countries: "border-emerald-200 bg-emerald-50 text-slate-900",
+  changeTypes: "border-amber-200 bg-amber-50 text-slate-900",
+};
 
 function NewsCard({ item }: { item: DistributorNews }) {
   return (
@@ -58,41 +66,13 @@ function NewsCard({ item }: { item: DistributorNews }) {
   );
 }
 
-function FilterSelect({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-slate-400"
-    >
-      <option value="all">{`All ${label}`}</option>
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-    </select>
-  );
-}
-
 export default function NewsClient({ news }: NewsClientProps) {
-  const [manufacturer, setManufacturer] = useState("all");
-  const [country, setCountry] = useState("all");
-  const [changeType, setChangeType] = useState("all");
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
+  const [countries, setCountries] = useState<string[]>([]);
+  const [changeTypes, setChangeTypes] = useState<string[]>([]);
   const [page, setPage] = useState(1);
 
-  const manufacturers = useMemo(
+  const manufacturerOptions = useMemo(
     () =>
       [...new Set(news.map((n) => n.uretici).filter(hasValue))].sort((a, b) =>
         a.localeCompare(b)
@@ -100,13 +80,13 @@ export default function NewsClient({ news }: NewsClientProps) {
     [news]
   );
 
-  const countries = useMemo(
+  const countryOptions = useMemo(
     () =>
       [...new Set(news.map((n) => n.ulke).filter(hasValue))].sort((a, b) => a.localeCompare(b)),
     [news]
   );
 
-  const changeTypes = useMemo(
+  const changeTypeOptions = useMemo(
     () =>
       [...new Set(news.map((n) => n.degisiklik_turu).filter(hasValue))].sort((a, b) =>
         a.localeCompare(b)
@@ -114,20 +94,29 @@ export default function NewsClient({ news }: NewsClientProps) {
     [news]
   );
 
+  const hasActiveFilters = manufacturers.length > 0 || countries.length > 0 || changeTypes.length > 0;
+
+  function clearFilters() {
+    setManufacturers([]);
+    setCountries([]);
+    setChangeTypes([]);
+  }
+
   const filtered = useMemo(
     () =>
       news.filter(
         (n) =>
-          (manufacturer === "all" || n.uretici === manufacturer) &&
-          (country === "all" || n.ulke === country) &&
-          (changeType === "all" || n.degisiklik_turu === changeType)
+          (manufacturers.length === 0 || (hasValue(n.uretici) && manufacturers.includes(n.uretici))) &&
+          (countries.length === 0 || (hasValue(n.ulke) && countries.includes(n.ulke))) &&
+          (changeTypes.length === 0 ||
+            (hasValue(n.degisiklik_turu) && changeTypes.includes(n.degisiklik_turu)))
       ),
-    [news, manufacturer, country, changeType]
+    [news, manufacturers, countries, changeTypes]
   );
 
   useEffect(() => {
     setPage(1);
-  }, [manufacturer, country, changeType]);
+  }, [manufacturers, countries, changeTypes]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -145,20 +134,48 @@ export default function NewsClient({ news }: NewsClientProps) {
             Distributor Network Updates
           </h1>
 
-          <div className="mt-4 flex flex-wrap gap-3">
-            <FilterSelect
-              label="Manufacturers"
-              value={manufacturer}
-              options={manufacturers}
-              onChange={setManufacturer}
-            />
-            <FilterSelect label="Countries" value={country} options={countries} onChange={setCountry} />
-            <FilterSelect
-              label="Change Types"
-              value={changeType}
-              options={changeTypes}
-              onChange={setChangeType}
-            />
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div className="w-48">
+              <MultiSelectFilter
+                label="Manufacturer"
+                options={manufacturerOptions}
+                selected={manufacturers}
+                onChange={setManufacturers}
+                chipColor={getProducerColor}
+                activeClassName={FILTER_COLORS.manufacturers}
+              />
+            </div>
+            <div className="w-48">
+              <MultiSelectFilter
+                label="Country"
+                options={countryOptions}
+                selected={countries}
+                onChange={setCountries}
+                activeClassName={FILTER_COLORS.countries}
+              />
+            </div>
+            <div className="w-48">
+              <MultiSelectFilter
+                label="Change Type"
+                options={changeTypeOptions}
+                selected={changeTypes}
+                onChange={setChangeTypes}
+                activeClassName={FILTER_COLORS.changeTypes}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={clearFilters}
+              disabled={!hasActiveFilters}
+              className={`ml-auto rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                hasActiveFilters
+                  ? "border-red-300 text-red-600 hover:border-red-400 hover:bg-red-50 hover:text-red-700"
+                  : "cursor-not-allowed border-slate-200 text-slate-400"
+              }`}
+            >
+              Clear Filters
+            </button>
           </div>
         </div>
 
