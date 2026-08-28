@@ -6,18 +6,14 @@ export default function Hero() {
     <section className="bg-[#F0F9FD]">
       <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-[1fr_1.05fr] lg:gap-10 lg:px-8 lg:py-20">
         <div className="flex flex-col items-start text-left">
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#53657A]">
-            Industrial Intelligence
-          </span>
-
-          <h1 className="mt-4 text-[2.5rem] font-semibold leading-[1.12] tracking-tight text-[#16243D] sm:text-5xl">
-            Track the Global
+          <h1 className="text-[2.5rem] font-semibold leading-[1.12] tracking-tight text-[#16243D] sm:text-5xl">
+            Tracking the Pump Industry,
             <br />
-            Pump Distribution Network.
+            in Real Time.
           </h1>
 
           <p className="mt-5 max-w-md text-base leading-relaxed text-[#53657A] sm:text-lg">
-            Monitor pump manufacturers, distributors and network changes across markets worldwide.
+            PumpRadar24 monitors manufacturers, distributors and real-time network changes across markets worldwide.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">

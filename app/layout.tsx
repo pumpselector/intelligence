@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pump Intelligence — Global Pump Distribution Network",
+  title: "PumpRadar24 — Tracking the Pump Industry in Real Time",
   description:
-    "Industrial intelligence platform tracking pump manufacturers, their authorized distributors and network changes worldwide.",
+    "PumpRadar24 monitors pump manufacturers, their authorized distributors and real-time network changes across markets worldwide.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

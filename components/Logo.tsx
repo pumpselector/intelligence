@@ -3,9 +3,9 @@ type BrandMarkProps = {
 };
 
 /**
- * Minimal industrial "P" monogram: a hollow, blueprint-style glyph with a single
- * amber data-node accent. Deliberately not a generic AI/startup mark — no gradient,
- * no brain/robot iconography, no neon.
+ * PumpRadar24 mark: a blueprint-style radar dish inside a rounded industrial
+ * badge — two range rings, a sweep line and a single amber contact blip.
+ * Reads as tracking/monitoring, not as a generic AI/startup logo.
  */
 export function BrandMark({ className = "h-8 w-8" }: BrandMarkProps) {
   return (
@@ -17,12 +17,20 @@ export function BrandMark({ className = "h-8 w-8" }: BrandMarkProps) {
       aria-hidden="true"
     >
       <rect x="0.5" y="0.5" width="31" height="31" rx="7" fill="#0B1830" />
+      {/* range rings */}
+      <circle cx="14.5" cy="17.5" r="9" stroke="#33496A" strokeWidth="1.4" />
+      <circle cx="14.5" cy="17.5" r="4.6" stroke="#33496A" strokeWidth="1.4" />
+      {/* sweep line from the dish centre out to the contact */}
       <path
-        d="M10.6 8.4H18C20.4853 8.4 22.5 10.3266 22.5 12.75C22.5 15.1734 20.4853 17.1 18 17.1H14V23.6H10.6V8.4Z"
-        fill="#F7FAFC"
+        d="M14.5 17.5L23 10.2"
+        stroke="#F7FAFC"
+        strokeWidth="1.6"
+        strokeLinecap="round"
       />
-      <rect x="14" y="11.2" width="4.5" height="3.5" fill="#0B1830" />
-      <rect x="19.6" y="19.6" width="3.1" height="3.1" rx="0.6" fill="#F5A900" />
+      {/* centre pivot */}
+      <circle cx="14.5" cy="17.5" r="1.5" fill="#F7FAFC" />
+      {/* contact blip */}
+      <circle cx="23" cy="10.2" r="2.4" fill="#F5A900" />
     </svg>
   );
 }
@@ -33,14 +41,15 @@ type LogoProps = {
   wordmarkClassName?: string;
 };
 
-/** Reusable "Pump Intelligence" brand lockup: BrandMark + two-weight wordmark. */
+/** Reusable PumpRadar24 brand lockup: BrandMark + two-weight wordmark. */
 export default function Logo({ className = "", markClassName = "h-8 w-8", wordmarkClassName = "text-[16px]" }: LogoProps) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <BrandMark className={markClassName} />
-      <span className={`flex items-baseline gap-1.5 leading-none whitespace-nowrap ${wordmarkClassName}`}>
+      <span className={`flex items-baseline leading-none whitespace-nowrap ${wordmarkClassName}`}>
         <span className="font-bold tracking-tight text-[#0B1830]">Pump</span>
-        <span className="font-medium tracking-tight text-[#3D4E63]">Intelligence</span>
+        <span className="font-medium tracking-tight text-[#3D4E63]">Radar</span>
+        <span className="font-semibold tracking-tight text-[#F5A900]">24</span>
       </span>
     </span>
   );
