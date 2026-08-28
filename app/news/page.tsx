@@ -14,7 +14,7 @@ export default async function NewsPage() {
 
   return (
     <>
-      <AccessBanner level={access.level} />
+      <AccessBanner level={access.level} emailVerified={access.emailVerified} />
       <NewsClient news={items} restricted={restricted} />
     </>
   );

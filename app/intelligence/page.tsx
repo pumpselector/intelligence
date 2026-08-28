@@ -1,4 +1,4 @@
-import { getAllDealers } from "@/lib/dealers";
+import { getAllDealers, hasValue } from "@/lib/dealers";
 import { getAccess, hasFullAccess } from "@/lib/access";
 import { maskDealer } from "@/lib/mask";
 import AccessBanner from "@/components/AccessBanner";
@@ -10,14 +10,19 @@ export default async function IntelligencePage() {
   const [dealers, access] = await Promise.all([getAllDealers(), getAccess()]);
 
   const restricted = !hasFullAccess(access.level);
+
+  // Manufacturer *count* is computed from the raw rows and is safe to expose
+  // (only the names are sensitive) — it survives masking as a plain number.
+  const manufacturerCount = new Set(dealers.map((d) => d.uretici).filter(hasValue)).size;
+
   // Mask on the server BEFORE handing rows to the client component — the real
   // values are never serialized into the RSC payload for restricted users.
   const rows = restricted ? dealers.map(maskDealer) : dealers;
 
   return (
     <>
-      <AccessBanner level={access.level} />
-      <IntelligenceClient dealers={rows} restricted={restricted} />
+      <AccessBanner level={access.level} emailVerified={access.emailVerified} />
+      <IntelligenceClient dealers={rows} restricted={restricted} manufacturerCount={manufacturerCount} />
     </>
   );
 }

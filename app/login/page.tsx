@@ -7,9 +7,17 @@ import { createClient } from "@/lib/supabase/client";
 type Mode = "signin" | "signup";
 type Status = { type: "error" | "info"; text: string } | null;
 
+const NOTICES: Record<string, string> = {
+  confirmed: "Email confirmed. You can sign in once an administrator approves your access.",
+  link_used:
+    "That confirmation link was already opened — some email apps preview links automatically. If your email is confirmed, just sign in below. Otherwise request a new confirmation email.",
+  link_expired:
+    "This confirmation link is no longer valid. Try signing in — if your email isn't confirmed yet, request a new confirmation email below.",
+};
+
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -18,16 +26,15 @@ export default function LoginPage() {
   const [status, setStatus] = useState<Status>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
+  const [showResend, setShowResend] = useState(false);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("confirmed")) {
-      setStatus({
-        type: "info",
-        text: "Email confirmed. You can sign in once an administrator approves your access.",
-      });
-    } else if (params.get("error")) {
-      setStatus({ type: "error", text: params.get("error")! });
+    const noticeKey = params.get("confirmed") ? "confirmed" : params.get("notice") ?? "";
+    if (NOTICES[noticeKey]) {
+      setStatus({ type: "info", text: NOTICES[noticeKey] });
+      if (noticeKey === "link_used" || noticeKey === "link_expired") setShowResend(true);
     }
 
     supabase.auth.getUser().then(({ data }) => {
@@ -39,6 +46,7 @@ export default function LoginPage() {
   function switchMode(next: Mode) {
     setMode(next);
     setStatus(null);
+    setShowResend(false);
   }
 
   async function handleSignIn(e: React.FormEvent) {
@@ -50,6 +58,8 @@ export default function LoginPage() {
 
     if (error) {
       setStatus({ type: "error", text: error.message });
+      // "Email not confirmed" -> offer to resend.
+      if (/confirm/i.test(error.message)) setShowResend(true);
       setPending(false);
       return;
     }
@@ -65,7 +75,7 @@ export default function LoginPage() {
       await supabase.auth.signOut();
       setStatus({
         type: "info",
-        text: "Your account is pending approval. You'll be able to sign in once an administrator approves it.",
+        text: "Your account is pending admin approval. You'll be able to sign in once it's approved.",
       });
       setPending(false);
       return;
@@ -92,12 +102,29 @@ export default function LoginPage() {
       return;
     }
 
-    setStatus({
-      type: "info",
-      text: "Account created. Check your email to confirm it, then wait for an administrator to approve your access before signing in.",
+    router.push(`/signup/check-email?email=${encodeURIComponent(email)}`);
+  }
+
+  async function handleResend() {
+    if (!email) {
+      setStatus({ type: "error", text: "Enter your email address above first." });
+      return;
+    }
+    setResending(true);
+    setStatus(null);
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
-    setPending(false);
-    setPassword("");
+
+    setResending(false);
+    setStatus(
+      error
+        ? { type: "error", text: error.message }
+        : { type: "info", text: `New confirmation link sent to ${email}.` }
+    );
   }
 
   async function handleSignOut() {
@@ -199,6 +226,17 @@ export default function LoginPage() {
             {pending ? "Please wait…" : mode === "signin" ? "Sign In" : "Create Account"}
           </button>
         </form>
+
+        {showResend && mode === "signin" && (
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="mt-3 w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+          >
+            {resending ? "Sending…" : "Resend confirmation email"}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Dealer, hasValue } from "@/lib/dealers";
+import { countUniqueDealers, Dealer, hasValue } from "@/lib/dealers";
 import { EMPTY_FILTERS, Filters, filterDealers, isFiltersEmpty, optionsFor, searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 import MultiSelectFilter from "@/components/ui/MultiSelectFilter";
@@ -12,6 +12,8 @@ type IntelligenceClientProps = {
   dealers: Dealer[];
   /** Levels 0/1/2: manufacturer/dealer fields arrive masked; hide the manufacturer facet + export. */
   restricted?: boolean;
+  /** Distinct manufacturer count from the raw (unmasked) dataset — safe to show even when restricted. */
+  manufacturerCount: number;
 };
 
 /** Multi-select facets — chip groups below the dropdowns follow this same order. */
@@ -66,7 +68,11 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-export default function IntelligenceClient({ dealers, restricted = false }: IntelligenceClientProps) {
+export default function IntelligenceClient({
+  dealers,
+  restricted = false,
+  manufacturerCount,
+}: IntelligenceClientProps) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [search, setSearch] = useState("");
 
@@ -95,7 +101,9 @@ export default function IntelligenceClient({ dealers, restricted = false }: Inte
 
   const summary = useMemo(
     () => ({
-      dealers: new Set(visibleDealers.map((d) => d.bayi_adi).filter(hasValue)).size,
+      // Same logic as the home page "Distributors" stat (countUniqueDealers) so
+      // the two numbers agree when no filter is active.
+      dealers: countUniqueDealers(visibleDealers),
       manufacturers: new Set(visibleDealers.map((d) => d.uretici).filter(hasValue)).size,
       countries: new Set(visibleDealers.map((d) => d.bayi_ulke).filter(hasValue)).size,
       pumpModels: new Set(visibleDealers.map((d) => d.pump).filter(hasValue)).size,
@@ -228,10 +236,13 @@ export default function IntelligenceClient({ dealers, restricted = false }: Inte
 
             <div className="grid grid-cols-2 gap-y-3 border-t border-slate-100 pt-3">
               {restricted ? (
-                <Stat value={visibleDealers.length} label="Listings" />
+                <>
+                  <Stat value={visibleDealers.length} label="Listings" />
+                  <Stat value={manufacturerCount} label="Manufacturers" />
+                </>
               ) : (
                 <>
-                  <Stat value={summary.dealers} label="Dealers" />
+                  <Stat value={summary.dealers} label="Distributors" />
                   <Stat value={summary.manufacturers} label="Manufacturers" />
                 </>
               )}
