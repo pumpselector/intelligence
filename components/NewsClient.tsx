@@ -8,6 +8,8 @@ import MultiSelectFilter from "@/components/ui/MultiSelectFilter";
 
 type NewsClientProps = {
   news: DistributorNews[];
+  /** Levels 0/1/2: manufacturer/dealer/detail fields arrive masked; hide the manufacturer facet. */
+  restricted?: boolean;
 };
 
 const PAGE_SIZE = 20;
@@ -66,7 +68,7 @@ function NewsCard({ item }: { item: DistributorNews }) {
   );
 }
 
-export default function NewsClient({ news }: NewsClientProps) {
+export default function NewsClient({ news, restricted = false }: NewsClientProps) {
   const [manufacturers, setManufacturers] = useState<string[]>([]);
   const [countries, setCountries] = useState<string[]>([]);
   const [changeTypes, setChangeTypes] = useState<string[]>([]);
@@ -135,16 +137,23 @@ export default function NewsClient({ news }: NewsClientProps) {
           </h1>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <div className="w-48">
-              <MultiSelectFilter
-                label="Manufacturer"
-                options={manufacturerOptions}
-                selected={manufacturers}
-                onChange={setManufacturers}
-                chipColor={getProducerColor}
-                activeClassName={FILTER_COLORS.manufacturers}
-              />
-            </div>
+            {restricted ? (
+              <div className="flex w-48 items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400">
+                <span>Manufacturer</span>
+                <span className="text-xs">🔒</span>
+              </div>
+            ) : (
+              <div className="w-48">
+                <MultiSelectFilter
+                  label="Manufacturer"
+                  options={manufacturerOptions}
+                  selected={manufacturers}
+                  onChange={setManufacturers}
+                  chipColor={getProducerColor}
+                  activeClassName={FILTER_COLORS.manufacturers}
+                />
+              </div>
+            )}
             <div className="w-48">
               <MultiSelectFilter
                 label="Country"

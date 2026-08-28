@@ -10,6 +10,8 @@ import IntelligenceMap, { MAP_COLORS } from "@/components/IntelligenceMap";
 
 type IntelligenceClientProps = {
   dealers: Dealer[];
+  /** Levels 0/1/2: manufacturer/dealer fields arrive masked; hide the manufacturer facet + export. */
+  restricted?: boolean;
 };
 
 /** Multi-select facets — chip groups below the dropdowns follow this same order. */
@@ -64,12 +66,15 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-export default function IntelligenceClient({ dealers }: IntelligenceClientProps) {
+export default function IntelligenceClient({ dealers, restricted = false }: IntelligenceClientProps) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [search, setSearch] = useState("");
 
   const pumpOptions = useMemo(() => optionsFor(dealers, filters, "pump", "pumps"), [dealers, filters]);
-  const producerOptions = useMemo(() => optionsFor(dealers, filters, "uretici", "producers"), [dealers, filters]);
+  const producerOptions = useMemo(
+    () => (restricted ? [] : optionsFor(dealers, filters, "uretici", "producers")),
+    [dealers, filters, restricted]
+  );
   const countryOptions = useMemo(() => optionsFor(dealers, filters, "bayi_ulke", "countries"), [dealers, filters]);
 
   const filteredDealers = useMemo(() => filterDealers(dealers, filters), [dealers, filters]);
@@ -169,14 +174,21 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
                 onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
                 activeClassName={MULTI_FILTER_COLORS.pumps.trigger}
               />
-              <MultiSelectFilter
-                label="Manufacturer"
-                options={producerOptions}
-                selected={filters.producers}
-                onChange={(next) => setFilters((f) => ({ ...f, producers: next }))}
-                chipColor={getProducerColor}
-                activeClassName={MULTI_FILTER_COLORS.producers.trigger}
-              />
+              {restricted ? (
+                <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400">
+                  <span>Manufacturer</span>
+                  <span className="text-xs">🔒 Locked</span>
+                </div>
+              ) : (
+                <MultiSelectFilter
+                  label="Manufacturer"
+                  options={producerOptions}
+                  selected={filters.producers}
+                  onChange={(next) => setFilters((f) => ({ ...f, producers: next }))}
+                  chipColor={getProducerColor}
+                  activeClassName={MULTI_FILTER_COLORS.producers.trigger}
+                />
+              )}
               <MultiSelectFilter
                 label="Country"
                 options={countryOptions}
@@ -215,8 +227,14 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
             )}
 
             <div className="grid grid-cols-2 gap-y-3 border-t border-slate-100 pt-3">
-              <Stat value={summary.dealers} label="Dealers" />
-              <Stat value={summary.manufacturers} label="Manufacturers" />
+              {restricted ? (
+                <Stat value={visibleDealers.length} label="Listings" />
+              ) : (
+                <>
+                  <Stat value={summary.dealers} label="Dealers" />
+                  <Stat value={summary.manufacturers} label="Manufacturers" />
+                </>
+              )}
               <Stat value={summary.countries} label="Countries" />
               <Stat value={summary.pumpModels} label="Pump Models" />
             </div>
@@ -249,6 +267,7 @@ export default function IntelligenceClient({ dealers }: IntelligenceClientProps)
             totalCount={dealers.length}
             search={search}
             hasActiveFilters={hasActiveFilters}
+            restricted={restricted}
           />
         </div>
       </div>

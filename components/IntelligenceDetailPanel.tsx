@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, FileSpreadsheet, Flag, Globe, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, FileSpreadsheet, Flag, Globe, Lock, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
 import { Dealer, hasActiveNote, hasValue } from "@/lib/dealers";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
@@ -43,6 +44,8 @@ type IntelligenceDetailPanelProps = {
   search: string;
   /** True when any sidebar filter or the search box is active — gates the Excel export button. */
   hasActiveFilters: boolean;
+  /** Levels 0/1/2: rows are already masked; disable Excel export. */
+  restricted?: boolean;
 };
 
 function NoteBadge({ text }: { text: string }) {
@@ -235,6 +238,7 @@ export default function IntelligenceDetailPanel({
   totalCount,
   search,
   hasActiveFilters,
+  restricted = false,
 }: IntelligenceDetailPanelProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>("bayi_ulke");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -291,15 +295,25 @@ export default function IntelligenceDetailPanel({
             )}
           </p>
 
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={() => exportDealersToExcel(sorted)}
-              className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+          {restricted ? (
+            <Link
+              href="/pricing"
+              className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Export
-            </button>
+              <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
+              Upgrade to export
+            </Link>
+          ) : (
+            hasActiveFilters && (
+              <button
+                type="button"
+                onClick={() => exportDealersToExcel(sorted)}
+                className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.75} />
+                Export
+              </button>
+            )
           )}
         </div>
       </div>

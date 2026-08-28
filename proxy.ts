@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PROTECTED_PREFIXES = ["/intelligence", "/news"];
+// Routes that require an approved session. /intelligence and /news are NOT here:
+// they're open to everyone (visitors included) and the server masks the data for
+// levels 0/1/2. The proxy still runs on them, but only to refresh the session.
+const PROTECTED_PREFIXES = ["/admin"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -25,6 +28,12 @@ export async function proxy(request: NextRequest) {
     }
   );
 
+  // Always touch the session so tokens stay fresh for the server components
+  // that read the access level on /intelligence and /news.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const isProtected = PROTECTED_PREFIXES.some((prefix) =>
     request.nextUrl.pathname.startsWith(prefix)
   );
@@ -32,10 +41,6 @@ export async function proxy(request: NextRequest) {
   if (!isProtected) {
     return response;
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -55,5 +60,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/intelligence/:path*", "/news/:path*"],
+  matcher: ["/intelligence/:path*", "/news/:path*", "/admin/:path*"],
 };

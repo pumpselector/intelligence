@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
+import HeaderAuth from "@/components/HeaderAuth";
 
 const NAV_LINKS = [
   { href: "/", label: "Overview" },
@@ -20,22 +21,25 @@ export default function Header() {
           <Logo markClassName="h-7 w-7 sm:h-8 sm:w-8" wordmarkClassName="text-[14px] sm:text-[16px]" />
         </Link>
 
-        <nav className="hidden items-center gap-6 sm:flex">
-          {NAV_LINKS.map((link) => {
-            const active = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm transition-colors ${
-                  active ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-900"
-                }`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="flex items-center gap-6">
+          <nav className="hidden items-center gap-6 sm:flex">
+            {NAV_LINKS.map((link) => {
+              const active = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`text-sm transition-colors ${
+                    active ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+          </nav>
+          <HeaderAuth />
+        </div>
       </div>
     </header>
   );
