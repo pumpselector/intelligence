@@ -13,6 +13,7 @@ export type AccessLevel = 0 | 1 | 2 | 3;
 
 export type Access = {
   level: AccessLevel;
+  userId: string | null;
   email: string | null;
   emailVerified: boolean;
 };
@@ -29,7 +30,7 @@ export async function getAccess(): Promise<Access> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { level: 0, email: null, emailVerified: false };
+  if (!user) return { level: 0, userId: null, email: null, emailVerified: false };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -37,12 +38,15 @@ export async function getAccess(): Promise<Access> {
     .eq("id", user.id)
     .single();
 
-  const email = user.email ?? null;
-  // Authoritative and migration-independent. profiles.email_verified mirrors this
-  // (via trigger, migration 0003) for admin/DB-side queries.
-  const emailVerified = Boolean(user.email_confirmed_at);
+  const base = {
+    userId: user.id,
+    email: user.email ?? null,
+    // Authoritative and migration-independent. profiles.email_verified mirrors
+    // this (via trigger, migration 0003) for admin/DB-side queries.
+    emailVerified: Boolean(user.email_confirmed_at),
+  };
 
-  if (!profile?.approved) return { level: 1, email, emailVerified };
-  if (!profile.paid) return { level: 2, email, emailVerified };
-  return { level: 3, email, emailVerified };
+  if (!profile?.approved) return { level: 1, ...base };
+  if (!profile.paid) return { level: 2, ...base };
+  return { level: 3, ...base };
 }

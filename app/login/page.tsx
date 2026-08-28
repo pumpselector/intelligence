@@ -3,13 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { borderClass, INPUT_BASE, isPasswordValid } from "@/lib/password";
+import PasswordFields from "@/components/PasswordFields";
 
 type Mode = "signin" | "signup";
 type Status = { type: "error" | "info"; text: string } | null;
-
-// At least 8 characters, with one letter and one number.
-const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-const PASSWORD_HINT = "At least 8 characters, with one letter and one number";
 
 const NOTICES: Record<string, string> = {
   confirmed: "Email confirmed. You can sign in once an administrator approves your access.",
@@ -18,15 +16,6 @@ const NOTICES: Record<string, string> = {
   link_expired:
     "This confirmation link is no longer valid. Try signing in — if your email isn't confirmed yet, request a new confirmation email below.",
 };
-
-const INPUT_BASE =
-  "mt-1 w-full rounded-md border px-3 py-2 text-sm text-slate-900 outline-none transition-colors";
-
-function borderClass(state: "neutral" | "ok" | "bad"): string {
-  if (state === "ok") return "border-emerald-400 focus:border-emerald-500";
-  if (state === "bad") return "border-red-400 focus:border-red-500";
-  return "border-slate-300 focus:border-slate-400";
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -61,9 +50,9 @@ export default function LoginPage() {
     });
   }, [supabase, router]);
 
-  const passwordValid = PASSWORD_RE.test(password);
-  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
-  const signupReady = passwordValid && passwordsMatch;
+  const isSignup = mode === "signup";
+  const signupReady =
+    isPasswordValid(password) && confirmPassword.length > 0 && password === confirmPassword;
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -154,15 +143,6 @@ export default function LoginPage() {
     return <div className="min-h-screen bg-slate-50" />;
   }
 
-  const isSignup = mode === "signup";
-  const passwordState: "neutral" | "ok" | "bad" = !isSignup || password.length === 0
-    ? "neutral"
-    : passwordValid
-      ? "ok"
-      : "bad";
-  const confirmState: "neutral" | "ok" | "bad" =
-    confirmPassword.length === 0 ? "neutral" : passwordsMatch ? "ok" : "bad";
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6">
@@ -202,49 +182,31 @@ export default function LoginPage() {
             />
           </div>
 
-          <div>
-            <label htmlFor="password" className="text-xs font-medium uppercase tracking-wide text-slate-500">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={isSignup ? 8 : 6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={`${INPUT_BASE} ${borderClass(passwordState)}`}
+          {isSignup ? (
+            <PasswordFields
+              idPrefix="signup"
+              newLabel="Password"
+              confirmLabel="Confirm password"
+              password={password}
+              confirmPassword={confirmPassword}
+              onPasswordChange={setPassword}
+              onConfirmChange={setConfirmPassword}
             />
-            {isSignup && (
-              <p
-                className={`mt-1 text-xs ${
-                  passwordState === "bad" ? "text-red-600" : "text-slate-400"
-                }`}
-              >
-                {PASSWORD_HINT}
-              </p>
-            )}
-          </div>
-
-          {isSignup && (
+          ) : (
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="text-xs font-medium uppercase tracking-wide text-slate-500"
-              >
-                Confirm password
+              <label htmlFor="password" className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Password
               </label>
               <input
-                id="confirmPassword"
+                id="password"
                 type="password"
                 required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`${INPUT_BASE} ${borderClass(confirmState)}`}
+                minLength={6}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`${INPUT_BASE} ${borderClass("neutral")}`}
               />
-              {confirmState === "bad" && (
-                <p className="mt-1 text-xs text-red-600">Passwords don&apos;t match.</p>
-              )}
             </div>
           )}
 
