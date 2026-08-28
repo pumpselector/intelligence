@@ -20,6 +20,16 @@ export default function LoginPage() {
   const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("confirmed")) {
+      setStatus({
+        type: "info",
+        text: "Email confirmed. You can sign in once an administrator approves your access.",
+      });
+    } else if (params.get("error")) {
+      setStatus({ type: "error", text: params.get("error")! });
+    }
+
     supabase.auth.getUser().then(({ data }) => {
       setSignedInEmail(data.user?.email ?? null);
       setCheckingSession(false);
@@ -70,7 +80,11 @@ export default function LoginPage() {
     setPending(true);
     setStatus(null);
 
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
 
     if (error) {
       setStatus({ type: "error", text: error.message });

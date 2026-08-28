@@ -3,14 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 const PROTECTED_PREFIXES = ["/intelligence", "/news"];
 
-// TEMPORARILY DISABLED - re-enable auth protection once custom domain + SMTP is set up
-const AUTH_PROTECTION_ENABLED = false;
-
 export async function proxy(request: NextRequest) {
-  if (!AUTH_PROTECTION_ENABLED) {
-    return NextResponse.next();
-  }
-
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
