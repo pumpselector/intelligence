@@ -62,3 +62,17 @@ export function hasActiveNote(dealer: Pick<Dealer, "removed" | "removed_date">):
   const removedDate = new Date(dealer.removed_date);
   return !Number.isNaN(removedDate.getTime()) && removedDate.getTime() > Date.now();
 }
+
+/**
+ * Counts distinct dealers by (bayi_adi + bayi_ulke): same name in different
+ * countries counts separately, same name+country counts once.
+ */
+export function countUniqueDealers(dealers: Pick<Dealer, "bayi_adi" | "bayi_ulke">[]): number {
+  const seen = new Set<string>();
+  for (const d of dealers) {
+    if (!hasValue(d.bayi_adi)) continue;
+    const country = hasValue(d.bayi_ulke) ? d.bayi_ulke.trim().toLowerCase() : "";
+    seen.add(`${d.bayi_adi.trim().toLowerCase()}|${country}`);
+  }
+  return seen.size;
+}

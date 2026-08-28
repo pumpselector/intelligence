@@ -2,6 +2,15 @@ import Link from "next/link";
 import { hasValue } from "@/lib/dealers";
 import { DistributorNews, formatNewsDate } from "@/lib/news";
 
+/** "Standard Technical Supply" -> "S.T.S." — home preview only, never the full /news list. */
+function maskName(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((word) => `${word[0]?.toUpperCase() ?? ""}.`)
+    .join("");
+}
+
 /** Editorial list of the most recent real network-change records — no illustrative/fake entries. */
 export default function LatestIntelligence({ items }: { items: DistributorNews[] }) {
   if (items.length === 0) return null;
@@ -28,17 +37,15 @@ export default function LatestIntelligence({ items }: { items: DistributorNews[]
               className="flex flex-col gap-1.5 px-2 py-4 transition-colors hover:bg-white sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
             >
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-[#53657A]">
-                    {formatNewsDate(item.haber_tarihi)}
-                  </span>
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-[#B37A00]">
-                    {item.degisiklik_turu}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-sm font-medium text-[#16243D]">
-                  {hasValue(item.uretici) ? item.uretici : "—"}
-                  {hasValue(item.bayi_adi) ? ` — ${item.bayi_adi}` : ""}
+                <p className="text-base font-bold tracking-tight text-[#16243D] sm:text-lg">
+                  {item.degisiklik_turu}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[#53657A]">
+                  {formatNewsDate(item.haber_tarihi)}
+                </p>
+                <p className="mt-1 truncate text-xs text-[#8A97A6]">
+                  {hasValue(item.uretici) ? maskName(item.uretici) : "—"}
+                  {hasValue(item.bayi_adi) ? ` — ${maskName(item.bayi_adi)}` : ""}
                 </p>
               </div>
               <span className="shrink-0 text-xs text-[#53657A]">{hasValue(item.ulke) ? item.ulke : ""}</span>
