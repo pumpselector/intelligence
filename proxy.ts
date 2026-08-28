@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
   );
 
   // Always touch the session so tokens stay fresh for the server components
-  // that read the access level on /intelligence and /news.
+  // that read the access level on /intelligence, /news, /settings, /pricing.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -60,5 +60,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/intelligence/:path*", "/news/:path*", "/admin/:path*"],
+  matcher: [
+    "/intelligence/:path*",
+    "/news/:path*",
+    "/settings/:path*",
+    "/pricing/:path*",
+    "/admin/:path*",
+  ],
 };

@@ -53,9 +53,13 @@ export default function HeaderAuth() {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="hidden max-w-[180px] truncate text-xs text-slate-500 sm:inline" title={email}>
+      <Link
+        href="/settings"
+        className="hidden max-w-[180px] truncate text-xs text-slate-500 transition-colors hover:text-slate-900 sm:inline"
+        title={`${email} — Settings`}
+      >
         {email}
-      </span>
+      </Link>
       <button
         type="button"
         onClick={handleSignOut}
