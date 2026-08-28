@@ -1,4 +1,4 @@
-import type { Dealer } from "@/lib/dealers";
+import { dealerKey, producerKey, type Dealer } from "@/lib/dealers";
 import type { DistributorNews } from "@/lib/news";
 
 /**
@@ -13,6 +13,28 @@ export function maskValue(value: string | null): string | null {
   if (trimmed === "" || trimmed === "." || trimmed === "-") return value;
   const len = Math.min(Math.max(trimmed.length, 4), 16);
   return "█".repeat(len);
+}
+
+// Non-cryptographic one-way token: enough to make the masked identity keys
+// opaque (client can't read the name back) while staying stable per value so
+// unique counts are exact. Salted so it isn't a plain dictionary lookup.
+const KEY_SALT = "pumpradar24::mask::v1";
+
+function fnv1a(input: string, basis: number): number {
+  let h = basis;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+// ~64-bit token (two independent FNV-1a passes) so distinct producers/dealers
+// almost never collide — the unique counts derived from these must be exact.
+function hashKey(normalized: string | null): string | null {
+  if (!normalized) return null;
+  const input = `${KEY_SALT}:${normalized}`;
+  return fnv1a(input, 0x811c9dc5).toString(36) + "-" + fnv1a(input, 0x9e3779b1).toString(36);
 }
 
 /** Fields that reveal manufacturer or dealer identity — masked for levels 0/1/2. */
@@ -31,6 +53,10 @@ export function maskDealer(dealer: Dealer): Dealer {
   for (const field of MASKED_DEALER_FIELDS) {
     masked[field] = maskValue(dealer[field] as string | null) as never;
   }
+  // Attach opaque identity tokens BEFORE the real names are gone from scope,
+  // so the client can still count distinct producers / dealers accurately.
+  masked.uretici_key = hashKey(producerKey(dealer));
+  masked.bayi_key = hashKey(dealerKey(dealer));
   return masked;
 }
 

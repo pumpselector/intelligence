@@ -1,3 +1,5 @@
+import { formatCount } from "@/lib/format";
+
 type Stat = { label: string; value: number };
 
 /** Compact, bordered data-snapshot grid — real counts only, no illustrative cards. */
@@ -13,7 +15,7 @@ export default function NetworkCoverage({ stats }: { stats: Stat[] }) {
           {stats.map((stat) => (
             <div key={stat.label} className="bg-white px-5 py-5">
               <p className="text-3xl font-semibold tabular-nums tracking-tight text-[#16243D]">
-                {stat.value.toLocaleString()}
+                {formatCount(stat.value)}
               </p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wide text-[#53657A]">{stat.label}</p>
             </div>

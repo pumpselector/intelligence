@@ -139,13 +139,13 @@ export default function NewsClient({ news, restricted = false }: NewsClientProps
           <div className="mt-4 flex flex-wrap items-center gap-3">
             {restricted ? (
               <div className="flex w-48 items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400">
-                <span>Manufacturer</span>
+                <span>Pump Producer</span>
                 <span className="text-xs">🔒</span>
               </div>
             ) : (
               <div className="w-48">
                 <MultiSelectFilter
-                  label="Manufacturer"
+                  label="Pump Producer"
                   options={manufacturerOptions}
                   selected={manufacturers}
                   onChange={setManufacturers}

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, FileSpreadsheet, Flag, Globe, Lock, Mail, MapPin, Phone, X, type LucideIcon } from "lucide-react";
 import { Dealer, hasActiveNote, hasValue } from "@/lib/dealers";
+import { formatCount } from "@/lib/format";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 
@@ -14,7 +15,7 @@ async function exportDealersToExcel(rows: Dealer[]) {
   const XLSX = await import("xlsx");
 
   const data = rows.map((row) => ({
-    Manufacturer: hasValue(row.uretici) ? row.uretici : "",
+    "Pump Producer": hasValue(row.uretici) ? row.uretici : "",
     "Pump Type": hasValue(row.pump) ? row.pump : "",
     Country: hasValue(row.bayi_ulke) ? row.bayi_ulke : "",
     "Dealer Name": hasValue(row.bayi_adi) ? row.bayi_adi : "",
@@ -285,12 +286,12 @@ export default function IntelligenceDetailPanel({
           <p className="text-sm text-slate-500">
             {search.trim() ? (
               <>
-                <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> of{" "}
-                {totalCount.toLocaleString()} listings
+                <span className="font-medium text-slate-900">{formatCount(sorted.length)}</span> of{" "}
+                {formatCount(totalCount)} listings
               </>
             ) : (
               <>
-                <span className="font-medium text-slate-900">{sorted.length.toLocaleString()}</span> listings
+                <span className="font-medium text-slate-900">{formatCount(sorted.length)}</span> listings
               </>
             )}
           </p>
@@ -331,7 +332,7 @@ export default function IntelligenceDetailPanel({
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr>
                 <SortHeader label="Country" column="bayi_ulke" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <SortHeader label="Manufacturer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortHeader label="Pump Producer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <th className="py-2.5 pl-2 pr-4">

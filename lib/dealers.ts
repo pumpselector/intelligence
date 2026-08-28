@@ -15,6 +15,13 @@ export type Dealer = {
   uretici_ulke: string | null;
   removed: string | null;
   removed_date: string | null;
+  /**
+   * Opaque, one-way identity tokens attached on the server (see lib/mask.ts).
+   * Present for restricted users so the client can compute correct unique
+   * counts even though uretici / bayi_adi arrive masked. Never the real value.
+   */
+  uretici_key?: string | null;
+  bayi_key?: string | null;
 };
 
 const PAGE_SIZE = 1000;
@@ -64,15 +71,37 @@ export function hasActiveNote(dealer: Pick<Dealer, "removed" | "removed_date">):
 }
 
 /**
- * Counts distinct dealers by (bayi_adi + bayi_ulke): same name in different
- * countries counts separately, same name+country counts once.
+ * Normalized identity string for a dealer: (bayi_adi + bayi_ulke) lower-cased.
+ * Same name in different countries is a different dealer; same name+country is
+ * one. Returns null when there's no usable name.
  */
+export function dealerKey(d: Pick<Dealer, "bayi_adi" | "bayi_ulke">): string | null {
+  if (!hasValue(d.bayi_adi)) return null;
+  const country = hasValue(d.bayi_ulke) ? d.bayi_ulke.trim().toLowerCase() : "";
+  return `${d.bayi_adi.trim().toLowerCase()}|${country}`;
+}
+
+/** Normalized identity string for a pump producer (uretici), or null. */
+export function producerKey(d: Pick<Dealer, "uretici">): string | null {
+  return hasValue(d.uretici) ? d.uretici.trim().toLowerCase() : null;
+}
+
+/** Distinct dealers by {@link dealerKey}. */
 export function countUniqueDealers(dealers: Pick<Dealer, "bayi_adi" | "bayi_ulke">[]): number {
   const seen = new Set<string>();
   for (const d of dealers) {
-    if (!hasValue(d.bayi_adi)) continue;
-    const country = hasValue(d.bayi_ulke) ? d.bayi_ulke.trim().toLowerCase() : "";
-    seen.add(`${d.bayi_adi.trim().toLowerCase()}|${country}`);
+    const key = dealerKey(d);
+    if (key) seen.add(key);
+  }
+  return seen.size;
+}
+
+/** Distinct pump producers by {@link producerKey}. */
+export function countUniqueProducers(dealers: Pick<Dealer, "uretici">[]): number {
+  const seen = new Set<string>();
+  for (const d of dealers) {
+    const key = producerKey(d);
+    if (key) seen.add(key);
   }
   return seen.size;
 }

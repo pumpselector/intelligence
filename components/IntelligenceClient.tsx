@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { countUniqueDealers, Dealer, hasValue } from "@/lib/dealers";
+import { countUniqueDealers, countUniqueProducers, Dealer, hasValue } from "@/lib/dealers";
+import { formatCount } from "@/lib/format";
 import { EMPTY_FILTERS, Filters, filterDealers, isFiltersEmpty, optionsFor, searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 import MultiSelectFilter from "@/components/ui/MultiSelectFilter";
@@ -10,15 +11,13 @@ import IntelligenceMap, { MAP_COLORS } from "@/components/IntelligenceMap";
 
 type IntelligenceClientProps = {
   dealers: Dealer[];
-  /** Levels 0/1/2: manufacturer/dealer fields arrive masked; hide the manufacturer facet + export. */
+  /** Levels 0/1/2: producer/dealer fields arrive masked; hide the producer facet + export. */
   restricted?: boolean;
-  /** Distinct manufacturer count from the raw (unmasked) dataset — safe to show even when restricted. */
-  manufacturerCount: number;
 };
 
 /** Multi-select facets — chip groups below the dropdowns follow this same order. */
 const MULTI_FILTER_LABELS: Record<"producers" | "countries" | "pumps", string> = {
-  producers: "Manufacturer",
+  producers: "Pump Producer",
   countries: "Country",
   pumps: "Product Type",
 };
@@ -53,7 +52,7 @@ function SearchIcon() {
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div>
-      <p className="text-lg font-semibold tabular-nums text-slate-900">{value.toLocaleString()}</p>
+      <p className="text-lg font-semibold tabular-nums text-slate-900">{formatCount(value)}</p>
       <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );
@@ -68,11 +67,7 @@ function LegendDot({ color, label }: { color: string; label: string }) {
   );
 }
 
-export default function IntelligenceClient({
-  dealers,
-  restricted = false,
-  manufacturerCount,
-}: IntelligenceClientProps) {
+export default function IntelligenceClient({ dealers, restricted = false }: IntelligenceClientProps) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [search, setSearch] = useState("");
 
@@ -99,17 +94,25 @@ export default function IntelligenceClient({
     [visibleDealers]
   );
 
-  const summary = useMemo(
-    () => ({
-      // Same logic as the home page "Distributors" stat (countUniqueDealers) so
-      // the two numbers agree when no filter is active.
-      dealers: countUniqueDealers(visibleDealers),
-      manufacturers: new Set(visibleDealers.map((d) => d.uretici).filter(hasValue)).size,
+  const summary = useMemo(() => {
+    // Dealer / producer counts recompute on every filter+search change. When
+    // restricted the names arrive masked, so we count the opaque identity
+    // tokens the server attached instead — same cardinality, no names leaked.
+    // Non-restricted uses the same helpers as the home page so the "Dealers"
+    // number matches exactly when no filter is active.
+    const dealers = restricted
+      ? new Set(visibleDealers.map((d) => d.bayi_key).filter(Boolean)).size
+      : countUniqueDealers(visibleDealers);
+    const producers = restricted
+      ? new Set(visibleDealers.map((d) => d.uretici_key).filter(Boolean)).size
+      : countUniqueProducers(visibleDealers);
+    return {
+      dealers,
+      producers,
       countries: new Set(visibleDealers.map((d) => d.bayi_ulke).filter(hasValue)).size,
       pumpModels: new Set(visibleDealers.map((d) => d.pump).filter(hasValue)).size,
-    }),
-    [visibleDealers]
-  );
+    };
+  }, [visibleDealers, restricted]);
 
   const hasActiveFilters = !isFiltersEmpty(filters) || search.trim().length > 0;
 
@@ -169,7 +172,7 @@ export default function IntelligenceClient({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search dealer or manufacturer..."
+                placeholder="Search dealer or producer..."
                 className="w-full rounded-md border border-slate-300 py-2 pl-8 pr-3 text-sm text-slate-900 outline-none focus:border-slate-400"
               />
             </div>
@@ -184,12 +187,12 @@ export default function IntelligenceClient({
               />
               {restricted ? (
                 <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400">
-                  <span>Manufacturer</span>
+                  <span>Pump Producer</span>
                   <span className="text-xs">🔒 Locked</span>
                 </div>
               ) : (
                 <MultiSelectFilter
-                  label="Manufacturer"
+                  label="Pump Producer"
                   options={producerOptions}
                   selected={filters.producers}
                   onChange={(next) => setFilters((f) => ({ ...f, producers: next }))}
@@ -235,17 +238,8 @@ export default function IntelligenceClient({
             )}
 
             <div className="grid grid-cols-2 gap-y-3 border-t border-slate-100 pt-3">
-              {restricted ? (
-                <>
-                  <Stat value={visibleDealers.length} label="Listings" />
-                  <Stat value={manufacturerCount} label="Manufacturers" />
-                </>
-              ) : (
-                <>
-                  <Stat value={summary.dealers} label="Distributors" />
-                  <Stat value={summary.manufacturers} label="Manufacturers" />
-                </>
-              )}
+              <Stat value={summary.dealers} label="Dealers" />
+              <Stat value={summary.producers} label="Pump Producers" />
               <Stat value={summary.countries} label="Countries" />
               <Stat value={summary.pumpModels} label="Pump Models" />
             </div>
