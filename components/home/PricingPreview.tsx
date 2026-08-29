@@ -13,27 +13,18 @@ export default function PricingPreview() {
         </div>
 
         <div className="mx-auto mt-10 grid max-w-3xl gap-6 sm:grid-cols-2">
-          <Link
-            href="/pricing"
-            className="flex flex-col rounded-xl border border-[#DCE6ED] bg-white p-6 transition-colors hover:border-[#16243D]/25"
-          >
+          <div className="flex flex-col rounded-xl border border-[#DCE6ED] bg-white p-6">
             <h3 className="text-lg font-semibold text-[#16243D]">Standard</h3>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-[#16243D]">
               {formatEur(BASE_PRICE)}
               <span className="text-sm font-normal text-[#53657A]"> / month</span>
             </p>
-            <p className="mt-4 flex-1 text-sm leading-relaxed text-[#53657A]">
+            <p className="mt-4 text-sm leading-relaxed text-[#53657A]">
               Full access to pump producer and pump dealer data.
             </p>
-            <span className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-[#16243D] px-4 py-2.5 text-sm font-semibold text-white">
-              View Pricing
-            </span>
-          </Link>
+          </div>
 
-          <Link
-            href="/pricing"
-            className="flex flex-col rounded-xl border-2 border-[#F5A900]/60 bg-white p-6 transition-colors hover:border-[#F5A900]"
-          >
+          <div className="flex flex-col rounded-xl border-2 border-[#F5A900]/60 bg-white p-6">
             <h3 className="text-lg font-semibold text-[#16243D]">Block Competitors</h3>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-[#16243D]">
               {formatEur(BASE_PRICE)}
@@ -42,13 +33,19 @@ export default function PricingPreview() {
                 + {formatEur(PER_BLOCK_PRICE)} per blocked company / month
               </span>
             </p>
-            <p className="mt-4 flex-1 text-sm leading-relaxed text-[#53657A]">
+            <p className="mt-4 text-sm leading-relaxed text-[#53657A]">
               Everything in Standard, plus: prevent specific competitor domains from accessing the
               platform.
             </p>
-            <span className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-[#F5A900] px-4 py-2.5 text-sm font-semibold text-[#16243D] transition-colors">
-              Get Started
-            </span>
+          </div>
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center justify-center rounded-md bg-[#16243D] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0B1830]"
+          >
+            View full pricing details →
           </Link>
         </div>
       </div>
