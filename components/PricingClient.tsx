@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
+import { FUNDING, PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { createClient } from "@/lib/supabase/client";
 import {
   BASE_PRICE,
@@ -240,6 +241,7 @@ export default function PricingClient() {
             {paypalEnabled ? (
               <div className="mt-6">
                 <PayPalButtons
+                  fundingSource={FUNDING.PAYPAL}
                   style={{ layout: "vertical", label: "subscribe", shape: "rect" }}
                   forceReRender={["standard"]}
                   createSubscription={() => startPaypalSubscription("standard", 0, [])}
@@ -285,15 +287,19 @@ export default function PricingClient() {
         </div>
       </div>
 
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
-          onClick={closeModal}
-        >
+      {/* Rendered on <body> via a portal so it sits above the PayPal button
+          iframes regardless of the page's stacking contexts. `modalOpen` is
+          false during SSR / first render, so the portal only runs client-side. */}
+      {modalOpen &&
+        createPortal(
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 p-4"
+            onClick={closeModal}
           >
+            <div
+              className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
             {step === 1 ? (
               <>
                 <h3 className="text-lg font-semibold text-slate-900">
@@ -397,6 +403,7 @@ export default function PricingClient() {
                 <div className="mt-4 flex flex-col gap-2">
                   {paypalEnabled ? (
                     <PayPalButtons
+                      fundingSource={FUNDING.PAYPAL}
                       style={{ layout: "vertical", label: "subscribe", shape: "rect" }}
                       forceReRender={[count]}
                       createSubscription={() =>
@@ -430,9 +437,10 @@ export default function PricingClient() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
     </main>
   );
 
@@ -446,6 +454,26 @@ export default function PricingClient() {
         vault: true,
         currency: "EUR",
         components: "buttons",
+        // Standard PayPal button only. The PayPal flow already covers card /
+        // guest checkout inside its own popup, so every alternate funding
+        // source — SEPA/IBAN direct debit, the separate card button, and the
+        // regional bank redirects the SDK adds automatically — is turned off.
+        disableFunding: [
+          "card",
+          "credit",
+          "paylater",
+          "sepa",
+          "bancontact",
+          "ideal",
+          "giropay",
+          "sofort",
+          "eps",
+          "mybank",
+          "p24",
+          "venmo",
+          "blik",
+          "trustly",
+        ].join(","),
       }}
     >
       {content}
