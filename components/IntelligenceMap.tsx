@@ -73,6 +73,12 @@ export default function IntelligenceMap({ highlightedCountries, selectedCountrie
     setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * factor)));
   }
 
+  /** Recenter + reset zoom only — the active country filter is untouched. */
+  function resetView() {
+    setZoom(MIN_ZOOM);
+    setCenter([0, 0]);
+  }
+
   return (
     <div className="relative w-full px-3 py-2" style={{ aspectRatio: `${MAP_WIDTH} / ${MAP_HEIGHT}` }}>
       <ComposableMap
@@ -125,6 +131,17 @@ export default function IntelligenceMap({ highlightedCountries, selectedCountrie
           </Geographies>
         </ZoomableGroup>
       </ComposableMap>
+
+      <button
+        type="button"
+        onClick={resetView}
+        title="Reset view"
+        aria-label="Reset view"
+        className="absolute right-3 top-3 flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-900"
+      >
+        <span className="text-sm leading-none">↺</span>
+        Reset view
+      </button>
 
       <div className="absolute bottom-3 right-3 flex flex-col divide-y divide-slate-200 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
         <ZoomButton label="+" onClick={() => zoomBy(ZOOM_STEP)} />

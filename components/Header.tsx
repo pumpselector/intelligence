@@ -6,9 +6,9 @@ import Logo from "@/components/Logo";
 import HeaderAuth from "@/components/HeaderAuth";
 
 const NAV_LINKS = [
-  { href: "/", label: "Overview" },
-  { href: "/intelligence", label: "Data Explorer" },
-  { href: "/news", label: "What's New" },
+  { href: "/", label: "Home" },
+  { href: "/intelligence", label: "Database" },
+  { href: "/news", label: "News" },
 ];
 
 export default function Header() {

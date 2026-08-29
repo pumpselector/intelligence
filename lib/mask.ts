@@ -78,18 +78,17 @@ export function maskNews(item: DistributorNews): DistributorNews {
 }
 
 /**
- * Soft, home-page-preview-only name mask: keep the first word verbatim, then
- * append "****". Multi-letter first word → no gap ("AG INDUSTRIES" → "AG****");
- * single-letter first word → one space ("A Pumps" → "A ****"). This is a teaser
- * for the public landing page, NOT an access boundary — {@link maskValue} (full
- * █ blocks) still guards the real /news and /intelligence pages.
+ * Soft, home-page-preview-only name mask: show only the first letter, then
+ * " ****". "Flowserve" → "F ****", "AGI" → "A ****", "Xylem" → "X ****".
+ * Empty / placeholder values pass straight through (nothing to show). This is a
+ * teaser for the public landing page, NOT an access boundary — {@link maskValue}
+ * (full █ blocks) still guards the real /news and /intelligence pages.
  */
 export function maskCompanyNamePreview(value: string | null): string | null {
   if (value == null) return value;
   const trimmed = value.trim();
   if (trimmed === "" || trimmed === "." || trimmed === "-") return value;
-  const first = trimmed.split(/\s+/)[0];
-  return first.length >= 2 ? `${first}****` : `${first} ****`;
+  return `${trimmed[0].toUpperCase()} ****`;
 }
 
 /**

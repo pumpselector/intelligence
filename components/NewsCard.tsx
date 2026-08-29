@@ -71,9 +71,11 @@ export default function NewsCard({ item }: { item: DistributorNews }) {
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
-        {/* Change type + date */}
-        <div className="flex shrink-0 flex-col gap-1.5 sm:w-44">
+      {/* Meta row: change type + date on the left, country pinned top-right.
+          Kept separate from the parties grid below so a long/short country
+          name can never shift the Producer / Dealer columns. */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="inline-flex w-fit items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
             {item.degisiklik_turu}
           </span>
@@ -82,38 +84,40 @@ export default function NewsCard({ item }: { item: DistributorNews }) {
           </span>
         </div>
 
-        {/* Producer + dealer, with the country tag pinned top-right */}
-        <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
-          <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Pump Producer</p>
-              <div className="mt-0.5 flex items-center gap-2">
-                {hasValue(item.uretici) && (
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                    style={{ backgroundColor: getProducerColor(item.uretici) }}
-                  />
-                )}
-                <p className="min-w-0 truncate font-semibold text-slate-900">
-                  {hasValue(item.uretici) ? item.uretici : "—"}
-                </p>
-              </div>
-              {hasValue(item.pump) && <p className="mt-0.5 text-xs text-slate-500">{item.pump}</p>}
-            </div>
+        {hasValue(item.ulke) && (
+          <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+            {item.ulke}
+          </span>
+        )}
+      </div>
 
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Pump Dealer</p>
-              <p className="mt-0.5 font-semibold text-slate-900">
-                {hasValue(item.bayi_adi) ? item.bayi_adi : "—"}
-              </p>
-            </div>
-          </div>
-
-          {hasValue(item.ulke) && (
-            <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-              {item.ulke}
+      {/* Parties: two fixed-width columns so "Pump Producer" and "Pump Dealer"
+          start at the same X on every card regardless of value length. Each
+          value line leads with a same-size swatch (transparent for the dealer)
+          so the two names align too. */}
+      <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-[minmax(0,18rem)_minmax(0,18rem)]">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Pump Producer</p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-sm"
+              style={{ backgroundColor: hasValue(item.uretici) ? getProducerColor(item.uretici) : "transparent" }}
+            />
+            <span className="min-w-0 truncate font-semibold text-slate-900">
+              {hasValue(item.uretici) ? item.uretici : "—"}
             </span>
-          )}
+          </div>
+          {hasValue(item.pump) && <p className="mt-0.5 pl-4 text-xs text-slate-500">{item.pump}</p>}
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Pump Dealer</p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-transparent" />
+            <span className="min-w-0 truncate font-semibold text-slate-900">
+              {hasValue(item.bayi_adi) ? item.bayi_adi : "—"}
+            </span>
+          </div>
         </div>
       </div>
 
