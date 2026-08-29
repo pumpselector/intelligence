@@ -4,20 +4,23 @@ import LatestIntelligence from "@/components/home/LatestIntelligence";
 import ProductPillars from "@/components/home/ProductPillars";
 import PricingPreview from "@/components/home/PricingPreview";
 import FinalCta from "@/components/home/FinalCta";
-import { countUniqueDealers, countUniqueProducers, getAllDealers, hasValue } from "@/lib/dealers";
+import { getNetworkCoverageStats } from "@/lib/dealers";
 import { getAllNews } from "@/lib/news";
 import { maskNewsPreview } from "@/lib/mask";
 
-export const dynamic = "force-dynamic";
+// The landing page has no per-request data (the counts and the news preview are
+// the same for everyone), so it's prerendered and refreshed on a 5-minute ISR
+// cycle instead of being rebuilt on every visit.
+export const revalidate = 300;
 
 export default async function Home() {
-  const [dealers, news] = await Promise.all([getAllDealers(), getAllNews()]);
+  const [coverage, news] = await Promise.all([getNetworkCoverageStats(), getAllNews()]);
 
   const stats = [
-    { label: "Pump Models", value: new Set(dealers.map((d) => d.pump).filter(hasValue)).size },
-    { label: "Pump Producers", value: countUniqueProducers(dealers) },
-    { label: "Countries", value: new Set(dealers.map((d) => d.bayi_ulke).filter(hasValue)).size },
-    { label: "Pump Dealers", value: countUniqueDealers(dealers) },
+    { label: "Pump Models", value: coverage.pumpModels },
+    { label: "Pump Producers", value: coverage.pumpProducers },
+    { label: "Countries", value: coverage.countries },
+    { label: "Pump Dealers", value: coverage.pumpDealers },
   ];
 
   return (

@@ -4,7 +4,11 @@ import { maskDealer } from "@/lib/mask";
 import AccessBanner from "@/components/AccessBanner";
 import IntelligenceClient from "@/components/IntelligenceClient";
 
-export const dynamic = "force-dynamic";
+// This page is still rendered per request — `getAccess()` reads the session, so
+// the masking is always the current viewer's. We deliberately don't set
+// `force-dynamic`: it also forces `fetchCache: "force-no-store"`, which would
+// disable the `unstable_cache` layer around `getAllDealers()` and send us back
+// to Supabase for the full table on every hit.
 
 export default async function IntelligencePage() {
   const [dealers, access] = await Promise.all([getAllDealers(), getAccess()]);

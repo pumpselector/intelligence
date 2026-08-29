@@ -4,7 +4,9 @@ import { maskNews } from "@/lib/mask";
 import AccessBanner from "@/components/AccessBanner";
 import NewsClient from "@/components/NewsClient";
 
-export const dynamic = "force-dynamic";
+// Rendered per request via `getAccess()` (session-dependent masking), but not
+// `force-dynamic` — that would disable the `unstable_cache` around
+// `getAllNews()`. See app/intelligence/page.tsx for the full rationale.
 
 export default async function NewsPage() {
   const [news, access] = await Promise.all([getAllNews(), getAccess()]);

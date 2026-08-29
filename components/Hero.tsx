@@ -44,11 +44,12 @@ export default function Hero() {
 
         <div className="relative">
           <Image
-            src="/pump_dealer_network.png"
+            src="/pump_dealer_network.webp"
             alt="Global pump dealer network"
-            width={1693}
-            height={929}
+            width={1440}
+            height={790}
             priority
+            sizes="(max-width: 1024px) 100vw, 640px"
             className="h-auto w-full"
           />
         </div>

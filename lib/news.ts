@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { supabase } from "@/lib/supabase";
 
 export type DistributorNews = {
@@ -43,29 +44,66 @@ export function formatNewsDate(value: string): string {
 
 const PAGE_SIZE = 1000;
 
-/** All distributor news updates, newest first. */
-export async function getAllNews(): Promise<DistributorNews[]> {
-  const rows: DistributorNews[] = [];
-  let from = 0;
+const NEWS_COLUMNS =
+  "id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,pump,bayi_adres,bayi_telefon,bayi_email,bayi_web";
 
-  while (true) {
+// Same rationale as the dealer data (see lib/dealers.ts): edited outside the
+// app, so a fixed staleness window rather than event-driven invalidation.
+const NEWS_TTL = 300;
+
+/**
+ * One {@link PAGE_SIZE}-row page of news, newest first, cached on its own so
+ * each entry stays under Next's data-cache limit. `haber_tarihi` isn't unique,
+ * so `id` is the tiebreaker — otherwise rows on a shared date could shift
+ * across page boundaries and be skipped or duplicated.
+ */
+const getCachedNewsPage = unstable_cache(
+  async (page: number): Promise<DistributorNews[]> => {
+    const from = page * PAGE_SIZE;
     const { data, error } = await supabase
       .from("distributor_news")
-      .select(
-        "id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,pump,bayi_adres,bayi_telefon,bayi_email,bayi_web"
-      )
+      .select(NEWS_COLUMNS)
       .order("haber_tarihi", { ascending: false })
+      .order("id", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 
     if (error) {
-      throw new Error(`Failed to fetch distributor news: ${error.message}`);
+      throw new Error(`Failed to fetch distributor news (page ${page}): ${error.message}`);
     }
 
-    rows.push(...(data as DistributorNews[]));
+    return (data as DistributorNews[]) ?? [];
+  },
+  ["distributor-news-page"],
+  { revalidate: NEWS_TTL, tags: ["distributor_news"] }
+);
 
-    if (!data || data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
+const getCachedNewsCount = unstable_cache(
+  async (): Promise<number> => {
+    const { count, error } = await supabase
+      .from("distributor_news")
+      .select("id", { count: "exact", head: true });
 
-  return rows;
+    if (error) {
+      throw new Error(`Failed to count distributor news: ${error.message}`);
+    }
+
+    return count ?? 0;
+  },
+  ["distributor-news-count"],
+  { revalidate: NEWS_TTL, tags: ["distributor_news"] }
+);
+
+/**
+ * All distributor news updates, newest first. Served from Next's data cache for
+ * up to {@link NEWS_TTL} seconds; on a miss the pages are fetched in parallel.
+ */
+export async function getAllNews(): Promise<DistributorNews[]> {
+  const count = await getCachedNewsCount();
+  const pageCount = Math.max(1, Math.ceil(count / PAGE_SIZE));
+
+  const pages = await Promise.all(
+    Array.from({ length: pageCount }, (_, page) => getCachedNewsPage(page))
+  );
+
+  return pages.flat();
 }

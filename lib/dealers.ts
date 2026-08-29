@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { supabase } from "@/lib/supabase";
 
 export type Dealer = {
@@ -26,31 +27,115 @@ export type Dealer = {
 
 const PAGE_SIZE = 1000;
 
-export async function getAllDealers(): Promise<Dealer[]> {
-  const rows: Dealer[] = [];
-  let from = 0;
+const DEALER_COLUMNS =
+  "id,created_at,uretici,bayi_adi,bayi_ulke,bayi_adres,bayi_telefon,bayi_email,bayi_web,pump,uretici_adres,uretici_ulke,removed,removed_date";
 
-  while (true) {
+// The dealer data is edited directly in Supabase / via scripts — there's no
+// in-app mutation to hook `revalidateTag("dealers")` onto — so a fixed window
+// is the staleness bound: a row added in Supabase appears within DEALERS_TTL
+// seconds. Bump this (or wire up revalidateTag) if that lag becomes a problem.
+const DEALERS_TTL = 300;
+
+/**
+ * One {@link PAGE_SIZE}-row page of dealers, cached on its own. Each entry stays
+ * well under Next's ~2 MB data-cache limit (the full set is ~2.3 MB), and the
+ * page index — passed as the argument — is part of the cache key.
+ */
+const getCachedDealerPage = unstable_cache(
+  async (page: number): Promise<Dealer[]> => {
+    const from = page * PAGE_SIZE;
     const { data, error } = await supabase
       .from("dealers")
-      .select(
-        "id,created_at,uretici,bayi_adi,bayi_ulke,bayi_adres,bayi_telefon,bayi_email,bayi_web,pump,uretici_adres,uretici_ulke,removed,removed_date"
-      )
+      .select(DEALER_COLUMNS)
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
 
     if (error) {
-      throw new Error(`Failed to fetch dealers: ${error.message}`);
+      throw new Error(`Failed to fetch dealers (page ${page}): ${error.message}`);
     }
 
-    rows.push(...(data as Dealer[]));
+    return (data as Dealer[]) ?? [];
+  },
+  ["dealers-page"],
+  { revalidate: DEALERS_TTL, tags: ["dealers"] }
+);
 
-    if (!data || data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
+const getCachedDealerCount = unstable_cache(
+  async (): Promise<number> => {
+    const { count, error } = await supabase
+      .from("dealers")
+      .select("id", { count: "exact", head: true });
 
-  return rows;
+    if (error) {
+      throw new Error(`Failed to count dealers: ${error.message}`);
+    }
+
+    return count ?? 0;
+  },
+  ["dealers-count"],
+  { revalidate: DEALERS_TTL, tags: ["dealers"] }
+);
+
+/**
+ * All dealer rows, ordered by id. Served from Next's data cache for up to
+ * {@link DEALERS_TTL} seconds; on a miss the pages are fetched in parallel (one
+ * round trip's latency instead of six sequential ones).
+ *
+ * Rows are RAW (unmasked) here — callers apply {@link maskDealer} per request
+ * based on the viewer's access level, so restricted users still never receive
+ * real values even though the underlying fetch is shared.
+ */
+export async function getAllDealers(): Promise<Dealer[]> {
+  const count = await getCachedDealerCount();
+  const pageCount = Math.max(1, Math.ceil(count / PAGE_SIZE));
+
+  const pages = await Promise.all(
+    Array.from({ length: pageCount }, (_, page) => getCachedDealerPage(page))
+  );
+
+  return pages.flat();
 }
+
+export type NetworkCoverageStats = {
+  pumpModels: number;
+  pumpProducers: number;
+  countries: number;
+  pumpDealers: number;
+};
+
+/**
+ * The four home-page "Network Coverage" totals, computed in Postgres by
+ * `network_coverage_stats()` (migration 0014) rather than pulling every dealer
+ * row to the server to count in JS. Cached on the same window as the dealer
+ * data.
+ */
+export const getNetworkCoverageStats = unstable_cache(
+  async (): Promise<NetworkCoverageStats> => {
+    const { data, error } = await supabase.rpc("network_coverage_stats").single();
+
+    if (error || !data) {
+      throw new Error(
+        `Failed to fetch network coverage stats: ${error?.message ?? "no rows"}`
+      );
+    }
+
+    const row = data as {
+      pump_models: number;
+      pump_producers: number;
+      countries: number;
+      pump_dealers: number;
+    };
+
+    return {
+      pumpModels: Number(row.pump_models),
+      pumpProducers: Number(row.pump_producers),
+      countries: Number(row.countries),
+      pumpDealers: Number(row.pump_dealers),
+    };
+  },
+  ["network-coverage-stats"],
+  { revalidate: DEALERS_TTL, tags: ["dealers"] }
+);
 
 /** Treats null/empty/placeholder ("." or "-") values as missing. */
 export function hasValue(value: string | null | undefined): value is string {

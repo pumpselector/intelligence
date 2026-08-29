@@ -1,4 +1,6 @@
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { USER_HEADER, decodeUserHeader, type ProxyUser } from "@/lib/session-header";
 
 /**
  * 0  - visitor, no session
@@ -22,13 +24,32 @@ export function hasFullAccess(level: AccessLevel): boolean {
   return level === 3;
 }
 
-/** Resolves the current request's access level from the Supabase session + profile. */
+/**
+ * Resolves the current request's access level from the Supabase session +
+ * profile.
+ *
+ * The proxy has already validated the auth token for this request and passed
+ * the user down via {@link USER_HEADER}, so we read that instead of paying for
+ * a second `auth.getUser()` network round trip. If the header is missing (a
+ * route outside the proxy matcher, say) we fall back to `getUser()`.
+ */
 export async function getAccess(): Promise<Access> {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: ProxyUser | null = decodeUserHeader((await headers()).get(USER_HEADER));
+
+  if (!user) {
+    const {
+      data: { user: fetched },
+    } = await supabase.auth.getUser();
+    user = fetched
+      ? {
+          id: fetched.id,
+          email: fetched.email ?? null,
+          emailConfirmedAt: fetched.email_confirmed_at ?? null,
+        }
+      : null;
+  }
 
   if (!user) return { level: 0, userId: null, email: null, emailVerified: false };
 
@@ -40,10 +61,10 @@ export async function getAccess(): Promise<Access> {
 
   const base = {
     userId: user.id,
-    email: user.email ?? null,
+    email: user.email,
     // Authoritative and migration-independent. profiles.email_verified mirrors
     // this (via trigger, migration 0003) for admin/DB-side queries.
-    emailVerified: Boolean(user.email_confirmed_at),
+    emailVerified: Boolean(user.emailConfirmedAt),
   };
 
   // access_until is set only when a subscription is cancelled "at period end"
