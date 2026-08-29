@@ -11,7 +11,11 @@ export type BlockedCompany = {
   effective_from: string | null;
   requested_at: string;
   active_until: string | null;
+  is_billable_addition: boolean;
 };
+
+const ROW_COLUMNS =
+  "id, company_name, status, effective_from, requested_at, active_until, is_billable_addition";
 
 function formatActiveUntil(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -79,6 +83,75 @@ function InlineSaveInput({
   );
 }
 
+/** A pending (next-cycle) slot: rename it, or give it up entirely. */
+function PendingSlotRow({
+  row,
+  cancelling,
+  onRename,
+  onCancel,
+}: {
+  row: BlockedCompany;
+  cancelling: boolean;
+  onRename: (name: string) => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(row.company_name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedName, setSavedName] = useState<string | null>(null);
+
+  const dirty = value.trim().length > 0 && value.trim() !== row.company_name.trim();
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    const err = await onRename(value);
+    setSaving(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setSavedName(value.trim());
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setSavedName(null);
+          }}
+          placeholder="Company name or domain"
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-400"
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || cancelling || !dirty}
+          className="shrink-0 rounded-md bg-slate-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving || cancelling}
+          className="shrink-0 rounded-md border border-red-300 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {cancelling ? "Cancelling…" : "Cancel slot"}
+        </button>
+      </div>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {savedName && !error && (
+        <p className="mt-1 text-xs text-emerald-600">Renamed to “{savedName}”.</p>
+      )}
+    </div>
+  );
+}
+
 export default function BlockedCompaniesSection({
   userId,
   slotCount,
@@ -94,6 +167,7 @@ export default function BlockedCompaniesSection({
   const [rows, setRows] = useState<BlockedCompany[]>(initial);
   const [keepSame, setKeepSame] = useState(true);
   const [newSlotKeys, setNewSlotKeys] = useState<string[]>([]);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [revisionNotice, setRevisionNotice] = useState<
     { tone: "ok" | "action" | "error"; text: string; url?: string } | null
   >(null);
@@ -107,24 +181,32 @@ export default function BlockedCompaniesSection({
       const data = (await res.json().catch(() => ({}))) as {
         price?: number;
         approvalUrl?: string | null;
+        needsApproval?: boolean;
         unchanged?: boolean;
         error?: string;
+        detail?: string;
       };
       if (!res.ok) {
         if (res.status === 404) return; // no billable subscription to revise
         setRevisionNotice({
           tone: "error",
-          text: data.error ?? "Could not update your subscription amount.",
+          text:
+            data.detail ??
+            data.error ??
+            "Could not update your subscription amount. Please try again.",
         });
         return;
       }
       if (data.unchanged) return;
-      if (data.approvalUrl) {
+      if (data.needsApproval && data.approvalUrl) {
+        // The new (higher) amount only takes effect once the buyer re-consents
+        // on PayPal. Show a persistent CTA rather than auto-redirecting — the
+        // user may still be editing more slots.
         setRevisionNotice({
           tone: "action",
-          text: `Your monthly amount changes to ${formatEur(
+          text: `Your monthly amount will change to ${formatEur(
             data.price ?? 0
-          )} from your next billing date.`,
+          )} from your next billing date — PayPal needs your approval first.`,
           url: data.approvalUrl,
         });
         return;
@@ -171,6 +253,17 @@ export default function BlockedCompaniesSection({
   );
   const totalSlots = namedActive.length + emptyActive.length + virtualSlots.length;
 
+  // Slots queued for the next billing cycle — "+ Add another company" additions
+  // and any next-cycle name changes. Still editable: the user can rename them or
+  // give them up entirely before the cycle they belong to starts.
+  const pendingRows = useMemo(
+    () =>
+      rows
+        .filter((r) => r.status === "pending_next_cycle")
+        .sort((a, b) => a.requested_at.localeCompare(b.requested_at)),
+    [rows]
+  );
+
   // Filling an empty slot (an existing blank "active" row, or one of the N
   // slots that has no row at all yet) takes effect immediately only for a
   // user's very first fill ever -- otherwise it waits for the next cycle,
@@ -181,7 +274,7 @@ export default function BlockedCompaniesSection({
       .from("blocked_companies")
       .update({ company_name: name, status })
       .eq("id", existingId)
-      .select("id, company_name, status, effective_from, requested_at, active_until")
+      .select(ROW_COLUMNS)
       .single();
     if (updateError || !data) return updateError?.message ?? "Could not save.";
     setRows((prev) => prev.map((r) => (r.id === existingId ? (data as BlockedCompany) : r)));
@@ -193,7 +286,7 @@ export default function BlockedCompaniesSection({
     const { data, error: insertError } = await supabase
       .from("blocked_companies")
       .insert({ user_id: userId, company_name: name, status })
-      .select("id, company_name, status, effective_from, requested_at, active_until")
+      .select(ROW_COLUMNS)
       .single();
     if (insertError || !data) return insertError?.message ?? "Could not save.";
     setRows((prev) => [...prev, data as BlockedCompany]);
@@ -217,23 +310,67 @@ export default function BlockedCompaniesSection({
       return null;
     }
 
-    const { error: insertError } = await supabase
+    const { data, error: insertError } = await supabase
       .from("blocked_companies")
-      .insert({ user_id: userId, company_name: name, status: "pending_next_cycle" });
-    if (insertError) return insertError.message;
+      .insert({ user_id: userId, company_name: name, status: "pending_next_cycle" })
+      .select(ROW_COLUMNS)
+      .single();
+    if (insertError || !data) return insertError?.message ?? "Could not save.";
+    setRows((prev) => [...prev, data as BlockedCompany]);
     return null;
   }
 
-  async function saveNewSlot(name: string): Promise<string | null> {
-    const { error: insertError } = await supabase.from("blocked_companies").insert({
-      user_id: userId,
-      company_name: name,
-      status: "pending_next_cycle",
-      is_billable_addition: true,
-    });
-    if (insertError) return insertError.message;
+  async function saveNewSlot(name: string, key: string): Promise<string | null> {
+    const { data, error: insertError } = await supabase
+      .from("blocked_companies")
+      .insert({
+        user_id: userId,
+        company_name: name,
+        status: "pending_next_cycle",
+        is_billable_addition: true,
+      })
+      .select(ROW_COLUMNS)
+      .single();
+    if (insertError || !data) return insertError?.message ?? "Could not save.";
+    // Hand the slot off to the "Pending" list (below) instead of leaving a
+    // second, frozen copy in the add-a-company input.
+    setRows((prev) => [...prev, data as BlockedCompany]);
+    setNewSlotKeys((prev) => prev.filter((k) => k !== key));
     void syncRevision();
     return null;
+  }
+
+  /** Rename a not-yet-active slot. No price change, so no PayPal revision. */
+  async function renamePendingSlot(id: string, name: string): Promise<string | null> {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) return "Enter a name, or cancel the slot instead.";
+    const { data, error } = await supabase
+      .from("blocked_companies")
+      .update({ company_name: trimmed })
+      .eq("id", id)
+      .select(ROW_COLUMNS)
+      .single();
+    if (error || !data) return error?.message ?? "Could not save.";
+    setRows((prev) => prev.map((r) => (r.id === id ? (data as BlockedCompany) : r)));
+    return null;
+  }
+
+  /**
+   * Give up a not-yet-active slot. If it was a billable addition the invoice
+   * drops, so re-sync PayPal — a decrease, which PayPal applies without a
+   * separate approval step.
+   */
+  async function cancelPendingSlot(id: string) {
+    const wasBillable = rows.find((r) => r.id === id)?.is_billable_addition ?? false;
+    setCancellingId(id);
+    const { error } = await supabase.from("blocked_companies").delete().eq("id", id);
+    setCancellingId(null);
+    if (error) {
+      setRevisionNotice({ tone: "error", text: error.message });
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    if (wasBillable) void syncRevision();
   }
 
   const nextCycleSlots = [
@@ -260,19 +397,14 @@ export default function BlockedCompaniesSection({
                 : "bg-emerald-50 text-emerald-700"
           }`}
         >
-          {revisionNotice.text}
+          <p>{revisionNotice.text}</p>
           {revisionNotice.url && (
-            <>
-              {" "}
-              <a
-                href={revisionNotice.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium underline"
-              >
-                Confirm with PayPal →
-              </a>
-            </>
+            <a
+              href={revisionNotice.url}
+              className="mt-2 inline-flex items-center rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700"
+            >
+              Approve the new amount on PayPal →
+            </a>
           )}
         </div>
       )}
@@ -314,6 +446,29 @@ export default function BlockedCompaniesSection({
             </li>
           ))}
         </ul>
+      )}
+
+      {pendingRows.length > 0 && (
+        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50/60 p-3">
+          <p className="text-xs font-semibold text-slate-700">
+            Pending — starts your next billing cycle
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Rename or cancel any of these before your next billing date. Cancelling a slot you&apos;re
+            being charged for lowers your invoice by {formatEur(PER_BLOCK_PRICE)}/month.
+          </p>
+          <div className="mt-2 flex flex-col gap-2">
+            {pendingRows.map((row) => (
+              <PendingSlotRow
+                key={row.id}
+                row={row}
+                cancelling={cancellingId === row.id}
+                onRename={(name) => renamePendingSlot(row.id, name)}
+                onCancel={() => cancelPendingSlot(row.id)}
+              />
+            ))}
+          </div>
+        </div>
       )}
 
       {totalSlots > 0 && (
@@ -366,7 +521,7 @@ export default function BlockedCompaniesSection({
           <div key={key} className="mb-2">
             <InlineSaveInput
               placeholder="New company name or domain"
-              onSave={(name) => saveNewSlot(name)}
+              onSave={(name) => saveNewSlot(name, key)}
               savedLabel={(name) => `${name} — pending for next cycle`}
             />
           </div>

@@ -13,15 +13,18 @@ type WebhookEvent = {
     custom_id?: string;
     billing_agreement_id?: string; // PAYMENT.SALE.COMPLETED
     billing_info?: { next_billing_time?: string };
+    amount?: { total?: string; currency?: string }; // PAYMENT.SALE.COMPLETED
   };
 };
 
 type SubscriptionRequestRow = {
   id: string;
   user_id: string;
+  monthly_price: number;
   cancel_at_period_end: boolean | null;
   pending_revised_block_count: number | null;
   pending_revised_price: number | null;
+  pending_revision_approval_url: string | null;
 };
 
 /**
@@ -69,7 +72,9 @@ export async function POST(request: Request) {
 
   const { data: reqRow } = await admin
     .from("subscription_requests")
-    .select("id, user_id, cancel_at_period_end, pending_revised_block_count, pending_revised_price")
+    .select(
+      "id, user_id, monthly_price, cancel_at_period_end, pending_revised_block_count, pending_revised_price, pending_revision_approval_url"
+    )
     .eq("paypal_subscription_id", subscriptionId)
     .maybeSingle<SubscriptionRequestRow>();
 
@@ -100,7 +105,8 @@ export async function POST(request: Request) {
     }
 
     case "BILLING.SUBSCRIPTION.UPDATED": {
-      // The buyer approved a revise() — make the queued amount the live amount.
+      // The buyer approved a revise() — make the queued amount the live amount
+      // and drop the now-stale approval link.
       if (reqRow.pending_revised_price == null) break;
       await admin
         .from("subscription_requests")
@@ -109,6 +115,7 @@ export async function POST(request: Request) {
           monthly_price: reqRow.pending_revised_price,
           pending_revised_block_count: null,
           pending_revised_price: null,
+          pending_revision_approval_url: null,
         })
         .eq("id", reqRow.id);
       break;
@@ -126,15 +133,31 @@ export async function POST(request: Request) {
       } catch {
         /* keep whatever date is already stored */
       }
-      // A pending revise that never produced a SUBSCRIPTION.UPDATED still lands
-      // here at the next cycle — the renewal is billed at the new amount.
+      // A pending revise that never produced a SUBSCRIPTION.UPDATED can still be
+      // reconciled here — but ONLY once PayPal is actually charging the new
+      // amount. If the buyer never approved a price increase, PayPal keeps
+      // billing the old amount, and promoting the pending values would put our
+      // records ahead of reality.
+      const saleTotal = Number(resource.amount?.total ?? NaN);
+      const pendingPrice =
+        reqRow.pending_revised_price != null ? Number(reqRow.pending_revised_price) : null;
+      const chargedNewAmount =
+        pendingPrice != null &&
+        Number.isFinite(saleTotal) &&
+        Math.abs(saleTotal - pendingPrice) < 0.01;
+      // No approval was ever outstanding (a decrease PayPal applied silently) —
+      // safe to reconcile even if we can't read the sale amount.
+      const noApprovalWasNeeded =
+        pendingPrice != null && !reqRow.pending_revision_approval_url;
+
       const revisionApplied =
-        reqRow.pending_revised_price != null
+        chargedNewAmount || noApprovalWasNeeded
           ? {
               blocked_company_count: reqRow.pending_revised_block_count,
               monthly_price: reqRow.pending_revised_price,
               pending_revised_block_count: null,
               pending_revised_price: null,
+              pending_revision_approval_url: null,
             }
           : {};
       await admin

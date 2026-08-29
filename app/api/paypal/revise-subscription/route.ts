@@ -15,9 +15,11 @@ type ActiveSub = {
   paypal_subscription_id: string | null;
   pending_revised_block_count: number | null;
   pending_revised_price: number | null;
+  pending_revision_approval_url: string | null;
 };
 
-type ReviseLink = { rel?: string; href?: string };
+type ReviseLink = { rel?: string; href?: string; method?: string };
+type ReviseResponse = { links?: ReviseLink[]; plan_overridden?: boolean; status?: string };
 
 /**
  * Re-syncs the PayPal subscription amount to the caller's current block-list
@@ -31,12 +33,12 @@ type ReviseLink = { rel?: string; href?: string };
  *             - rows flagged removed_pending that were part of the paid slots
  * then the new monthly amount is `blockingPrice(nextCount)`.
  *
- * Timing: we call PayPal's /revise immediately. A pricing-only revision via the
- * inline billing_cycles override does NOT prorate or charge now — PayPal applies
- * it from the next billing cycle. Calling it now (rather than near the renewal
- * date, which would need a scheduler we don't have) also means any required
- * buyer approval happens while the user is still in the flow; we return that
- * approval URL when PayPal asks for it.
+ * Approval: a PayPal-funded subscription must have the buyer re-consent to any
+ * pricing change. PayPal's /revise returns an `approve` HATEOAS link for that;
+ * the new amount does NOT take effect (PayPal keeps billing the old one) until
+ * the buyer visits it. We hand that link back to the caller AND persist it so
+ * the Settings page can nag until it's done. A pure decrease that PayPal
+ * applies without re-consent comes back with no `approve` link.
  */
 export async function POST() {
   const supabase = await createClient();
@@ -52,7 +54,7 @@ export async function POST() {
   const { data: sub } = await admin
     .from("subscription_requests")
     .select(
-      "id, plan_type, monthly_price, blocked_company_count, paypal_subscription_id, pending_revised_block_count, pending_revised_price"
+      "id, plan_type, monthly_price, blocked_company_count, paypal_subscription_id, pending_revised_block_count, pending_revised_price, pending_revision_approval_url"
     )
     .eq("user_id", user.id)
     .in("status", ["active", "past_due"])
@@ -85,44 +87,49 @@ export async function POST() {
   const nextCount = Math.max(1, baseCount + (additions ?? 0) - (removals ?? 0));
   const nextPrice = blockingPrice(nextCount);
 
-  // What PayPal's amount is currently set to: the last queued revision, or the
-  // live plan amount if none is queued.
+  // What PayPal's amount is currently queued to become: the last revision, or
+  // the live plan amount if none is queued.
   const currentTargetPrice =
     sub.pending_revised_price != null ? Number(sub.pending_revised_price) : basePrice;
   const backToBaseline = nextCount === sub.blocked_company_count && nextPrice === basePrice;
+  const hasOutstandingApproval = Boolean(sub.pending_revision_approval_url);
 
-  // Persist (or clear) the queued target — it's the source of truth for the
-  // webhook and for an admin when PayPal isn't wired up yet.
-  await admin
-    .from("subscription_requests")
-    .update(
-      backToBaseline
-        ? { pending_revised_block_count: null, pending_revised_price: null }
-        : { pending_revised_block_count: nextCount, pending_revised_price: nextPrice }
-    )
-    .eq("id", sub.id);
-
-  if (nextPrice === currentTargetPrice) {
+  // Nothing to do: the computed target already matches what's queued and there's
+  // no half-finished approval to chase.
+  if (nextPrice === currentTargetPrice && !hasOutstandingApproval) {
     return NextResponse.json({ ok: true, unchanged: true, blockCount: nextCount, price: nextPrice });
   }
 
-  // Can't talk to PayPal (no creds) or nothing to revise (fallback-created row,
-  // or a Standard plan being upgraded) — leave it for the admin to reconcile.
+  const queuedFields = backToBaseline
+    ? {
+        pending_revised_block_count: null,
+        pending_revised_price: null,
+        pending_revision_approval_url: null,
+      }
+    : { pending_revised_block_count: nextCount, pending_revised_price: nextPrice };
+
+  // Can't talk to PayPal (no creds) or nothing to revise there (fallback-created
+  // row, or a Standard plan) — record the target for the admin / webhook and
+  // stop. No approval step in this path.
   if (!paypalConfigured() || !sub.paypal_subscription_id || sub.plan_type !== "blocking") {
-    return NextResponse.json({
-      ok: true,
-      deferred: true,
-      blockCount: nextCount,
-      price: nextPrice,
-    });
+    await admin
+      .from("subscription_requests")
+      .update({ ...queuedFields, pending_revision_approval_url: null })
+      .eq("id", sub.id);
+    return NextResponse.json({ ok: true, deferred: true, blockCount: nextCount, price: nextPrice });
   }
 
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://pumpradar24.com").replace(/\/$/, "");
+
+  let revised: ReviseResponse;
   try {
-    const revised = await paypalRequest<{ links?: ReviseLink[] }>(
+    revised = await paypalRequest<ReviseResponse>(
       `/v1/billing/subscriptions/${encodeURIComponent(sub.paypal_subscription_id)}/revise`,
       {
         method: "POST",
         body: {
+          // Inline override of the current plan's price only — no plan_id, we're
+          // not switching plans. Same shape create-subscription uses.
           plan: {
             billing_cycles: [
               {
@@ -134,30 +141,69 @@ export async function POST() {
               },
             ],
           },
+          // Required for the buyer-approval redirect to work — without it PayPal
+          // rejects the call / returns an approve link with nowhere to return to.
+          application_context: {
+            brand_name: "PumpRadar24",
+            locale: "en-US",
+            shipping_preference: "NO_SHIPPING",
+            payment_method: {
+              payer_selected: "PAYPAL",
+              payee_preferred: "IMMEDIATE_PAYMENT_REQUIRED",
+            },
+            return_url: `${siteUrl}/settings?revised=success`,
+            cancel_url: `${siteUrl}/settings?revised=cancelled`,
+          },
         },
       }
     );
-
-    const approvalUrl =
-      revised.links?.find((l) => l.rel === "approve")?.href ?? null;
-
-    return NextResponse.json({
-      ok: true,
-      blockCount: nextCount,
-      price: nextPrice,
-      approvalUrl,
-    });
   } catch (err) {
-    // The target is already stored; surface the failure but don't 500 the UI.
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[revise-subscription] PayPal /revise failed", {
+      subscription: sub.paypal_subscription_id,
+      nextCount,
+      nextPrice,
+      detail,
+    });
+    // Leave the DB untouched so the next attempt still sees a changed target
+    // and retries rather than short-circuiting on "unchanged".
     return NextResponse.json(
-      {
-        ok: true,
-        deferred: true,
-        blockCount: nextCount,
-        price: nextPrice,
-        detail: err instanceof Error ? err.message : String(err),
-      },
-      { status: 200 }
+      { ok: false, error: "paypal_revise_failed", detail },
+      { status: 502 }
     );
   }
+
+  const approvalUrl = revised.links?.find((l) => l.rel === "approve")?.href ?? null;
+
+  console.log("[revise-subscription] PayPal /revise ok", {
+    subscription: sub.paypal_subscription_id,
+    nextCount,
+    nextPrice,
+    planOverridden: revised.plan_overridden ?? null,
+    status: revised.status ?? null,
+    needsApproval: Boolean(approvalUrl),
+  });
+
+  await admin
+    .from("subscription_requests")
+    .update({
+      ...queuedFields,
+      pending_revision_approval_url: backToBaseline ? null : approvalUrl,
+    })
+    .eq("id", sub.id);
+
+  // A revert back to the paid baseline is a cancellation of the queued change —
+  // don't send the user through an approval step for it even if PayPal offers
+  // one for the (downward) adjustment.
+  if (approvalUrl && !backToBaseline) {
+    return NextResponse.json({
+      ok: true,
+      needsApproval: true,
+      approvalUrl,
+      blockCount: nextCount,
+      price: nextPrice,
+    });
+  }
+
+  return NextResponse.json({ ok: true, applied: true, blockCount: nextCount, price: nextPrice });
 }
