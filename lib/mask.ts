@@ -63,7 +63,6 @@ export function maskDealer(dealer: Dealer): Dealer {
 const MASKED_NEWS_FIELDS: (keyof DistributorNews)[] = [
   "uretici",
   "bayi_adi",
-  "detay",
   "bayi_adres",
   "bayi_telefon",
   "bayi_email",
@@ -76,4 +75,38 @@ export function maskNews(item: DistributorNews): DistributorNews {
     masked[field] = maskValue(item[field] as string | null) as never;
   }
   return masked;
+}
+
+/**
+ * Soft, home-page-preview-only name mask: keep the first word verbatim, then
+ * append "****". Multi-letter first word → no gap ("AG INDUSTRIES" → "AG****");
+ * single-letter first word → one space ("A Pumps" → "A ****"). This is a teaser
+ * for the public landing page, NOT an access boundary — {@link maskValue} (full
+ * █ blocks) still guards the real /news and /intelligence pages.
+ */
+export function maskCompanyNamePreview(value: string | null): string | null {
+  if (value == null) return value;
+  const trimmed = value.trim();
+  if (trimmed === "" || trimmed === "." || trimmed === "-") return value;
+  const first = trimmed.split(/\s+/)[0];
+  return first.length >= 2 ? `${first}****` : `${first} ****`;
+}
+
+/**
+ * Shapes a news row for the home-page preview cards: producer + dealer names get
+ * the soft {@link maskCompanyNamePreview} treatment; pump type and every dealer
+ * contact field are dropped so the preview only ever shows change type, date,
+ * masked producer, masked dealer and country.
+ */
+export function maskNewsPreview(item: DistributorNews): DistributorNews {
+  return {
+    ...item,
+    uretici: maskCompanyNamePreview(item.uretici),
+    bayi_adi: maskCompanyNamePreview(item.bayi_adi),
+    pump: null,
+    bayi_adres: null,
+    bayi_telefon: null,
+    bayi_email: null,
+    bayi_web: null,
+  };
 }

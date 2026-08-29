@@ -6,6 +6,7 @@ import PricingPreview from "@/components/home/PricingPreview";
 import FinalCta from "@/components/home/FinalCta";
 import { countUniqueDealers, countUniqueProducers, getAllDealers, hasValue } from "@/lib/dealers";
 import { getAllNews } from "@/lib/news";
+import { maskNewsPreview } from "@/lib/mask";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function Home() {
     <main className="flex flex-1 flex-col">
       <Hero />
       <NetworkCoverage stats={stats} />
-      <LatestIntelligence items={news.slice(0, 3)} />
+      <LatestIntelligence items={news.slice(0, 5).map(maskNewsPreview)} />
       <ProductPillars />
       <PricingPreview />
       <FinalCta />

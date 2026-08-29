@@ -1,5 +1,16 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+
+/**
+ * Scrolls to the on-page Pricing section. Done via an onClick (not an
+ * <a href="#pricing">) so it fires on every click, including when the hash is
+ * already in the URL, and always animates rather than jumping.
+ */
+function scrollToPricing() {
+  document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 export default function Hero() {
   return (
@@ -21,12 +32,13 @@ export default function Hero() {
             >
               Explore Database
             </Link>
-            <Link
-              href="/#pricing"
+            <button
+              type="button"
+              onClick={scrollToPricing}
               className="inline-flex items-center justify-center rounded-md border border-[#DCE6ED] bg-white px-6 py-3 text-xs font-semibold uppercase tracking-wide text-[#16243D] transition-colors hover:border-[#16243D]/25 hover:bg-[#F3F9FC]"
             >
               See Pricing
-            </Link>
+            </button>
           </div>
         </div>
 

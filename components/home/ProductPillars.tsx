@@ -1,11 +1,11 @@
 const PILLARS = [
   {
-    title: "Manufacturer Network",
-    body: "Track pump manufacturers and their global distribution footprint.",
+    title: "Pump Producer Network",
+    body: "Track pump producers and their global distribution footprint.",
   },
   {
-    title: "Distributor Intelligence",
-    body: "Explore distributors, locations and contact information.",
+    title: "Pump Dealer Intelligence",
+    body: "Explore pump dealers, locations and contact information.",
   },
   {
     title: "Network Changes",

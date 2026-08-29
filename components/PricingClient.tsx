@@ -137,7 +137,7 @@ export default function PricingClient() {
         <div className="text-center">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Choose your plan</h1>
           <p className="mt-3 text-sm text-slate-500">
-            Full access to manufacturer and dealer data across every market we track.
+            Full access to pump producer and pump dealer data across every market we track.
           </p>
         </div>
 
@@ -156,7 +156,7 @@ export default function PricingClient() {
               <span className="text-sm font-normal text-slate-400"> / month</span>
             </p>
             <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-600">
-              Full access to manufacturer and dealer data.
+              Full access to pump producer and pump dealer data.
             </p>
             <button
               type="button"
