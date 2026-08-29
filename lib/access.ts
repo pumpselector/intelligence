@@ -34,7 +34,7 @@ export async function getAccess(): Promise<Access> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("approved, paid")
+    .select("approved, paid, access_until")
     .eq("id", user.id)
     .single();
 
@@ -46,7 +46,14 @@ export async function getAccess(): Promise<Access> {
     emailVerified: Boolean(user.email_confirmed_at),
   };
 
+  // access_until is set only when a subscription is cancelled "at period end"
+  // (migration 0013): paid stays true, but full access lapses once the paid
+  // period is over. Null = no expiry.
+  const today = new Date().toISOString().slice(0, 10);
+  const paidActive =
+    Boolean(profile?.paid) && (!profile?.access_until || profile.access_until >= today);
+
   if (!profile?.approved) return { level: 1, ...base };
-  if (!profile.paid) return { level: 2, ...base };
+  if (!paidActive) return { level: 2, ...base };
   return { level: 3, ...base };
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { createClient } from "@/lib/supabase/client";
 import {
   BASE_PRICE,
@@ -14,6 +15,12 @@ import {
 type SubmitState = { plan: PlanType | null; error: string | null };
 type ModalStep = 1 | 2;
 
+// Exposed to the browser at build time. When empty, /pricing keeps the old
+// "request received" flow (no real payment) so the site works without PayPal
+// credentials; fill NEXT_PUBLIC_PAYPAL_CLIENT_ID (+ the server PAYPAL_* vars) to
+// switch on PayPal checkout with no code change.
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
+
 export default function PricingClient() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -24,8 +31,16 @@ export default function PricingClient() {
   const [companies, setCompanies] = useState<string[]>([]);
   const [submit, setSubmit] = useState<SubmitState>({ plan: null, error: null });
 
+  // Always-current company list for the PayPal button's create callback, which
+  // is captured once per `forceReRender` and can't see later state directly.
+  const companiesRef = useRef<string[]>([]);
+  useEffect(() => {
+    companiesRef.current = companies;
+  }, [companies]);
+
   const modalTotal = blockingPrice(count);
   const busy = submit.plan !== null;
+  const paypalEnabled = PAYPAL_CLIENT_ID.length > 0;
 
   async function requireUserId(): Promise<string | null> {
     const {
@@ -38,7 +53,13 @@ export default function PricingClient() {
     return user.id;
   }
 
-  async function subscribe(plan: PlanType, price: number, blocked: string[], blockedCount: number) {
+  // ---- Fallback flow (no PayPal credentials): record a request row only ----
+  async function submitRequest(
+    plan: PlanType,
+    price: number,
+    blocked: string[],
+    blockedCount: number
+  ) {
     setSubmit({ plan, error: null });
 
     const userId = await requireUserId();
@@ -86,6 +107,63 @@ export default function PricingClient() {
     router.push("/subscribe/thanks");
   }
 
+  // ---- PayPal flow: create the subscription server-side, then approve ----
+  async function startPaypalSubscription(
+    plan: PlanType,
+    blockCount: number,
+    blocked: string[]
+  ): Promise<string> {
+    setSubmit({ plan, error: null });
+
+    const userId = await requireUserId();
+    if (!userId) throw new Error("Please sign in to continue.");
+
+    const res = await fetch("/api/paypal/create-subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan, blockCount, companies: blocked }),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      subscriptionId?: string;
+      error?: string;
+      detail?: string;
+    };
+
+    if (!res.ok || !data.subscriptionId) {
+      const message =
+        data.error === "unauthorized"
+          ? "Please sign in to continue."
+          : data.detail || data.error || "Could not start checkout.";
+      setSubmit({ plan: null, error: message });
+      throw new Error(message);
+    }
+
+    return data.subscriptionId;
+  }
+
+  async function handlePaypalApprove(data: { subscriptionID?: string | null }) {
+    try {
+      if (data.subscriptionID) {
+        await fetch("/api/paypal/activate-subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscriptionId: data.subscriptionID }),
+        });
+      }
+    } finally {
+      setSubmit({ plan: null, error: null });
+      setModalOpen(false);
+      router.push("/subscribe/thanks");
+    }
+  }
+
+  function handlePaypalError(err: unknown) {
+    setSubmit({
+      plan: null,
+      error: err instanceof Error ? err.message : "PayPal checkout failed. Please try again.",
+    });
+  }
+
   function openBlockingModal() {
     setSubmit({ plan: null, error: null });
     setStep(1);
@@ -123,15 +201,15 @@ export default function PricingClient() {
 
   function subscribeToStandard() {
     setModalOpen(false);
-    subscribe("standard", BASE_PRICE, [], 0);
+    submitRequest("standard", BASE_PRICE, [], 0);
   }
 
   function subscribeToBlocking() {
     const filled = companies.map((c) => c.trim()).filter((c) => c.length > 0);
-    subscribe("blocking", blockingPrice(count), filled, count);
+    submitRequest("blocking", blockingPrice(count), filled, count);
   }
 
-  return (
+  const content = (
     <main className="flex flex-1 flex-col bg-slate-50 px-6 py-16">
       <div className="mx-auto w-full max-w-4xl">
         <div className="text-center">
@@ -158,14 +236,27 @@ export default function PricingClient() {
             <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-600">
               Full access to pump producer and pump dealer data.
             </p>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => subscribe("standard", BASE_PRICE, [], 0)}
-              className="mt-6 w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
-            >
-              {submit.plan === "standard" ? "Submitting…" : "Select"}
-            </button>
+
+            {paypalEnabled ? (
+              <div className="mt-6">
+                <PayPalButtons
+                  style={{ layout: "vertical", label: "subscribe", shape: "rect" }}
+                  forceReRender={["standard"]}
+                  createSubscription={() => startPaypalSubscription("standard", 0, [])}
+                  onApprove={handlePaypalApprove}
+                  onError={handlePaypalError}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => submitRequest("standard", BASE_PRICE, [], 0)}
+                className="mt-6 w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+              >
+                {submit.plan === "standard" ? "Submitting…" : "Select"}
+              </button>
+            )}
           </div>
 
           {/* Block Competitors */}
@@ -245,7 +336,7 @@ export default function PricingClient() {
                     Blocking requires at least 1 company.{" "}
                     <button
                       type="button"
-                      onClick={subscribeToStandard}
+                      onClick={paypalEnabled ? () => setModalOpen(false) : subscribeToStandard}
                       className="font-medium text-amber-700 hover:text-amber-800"
                     >
                       Choose the Standard plan instead
@@ -304,14 +395,30 @@ export default function PricingClient() {
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={subscribeToBlocking}
-                    className="w-full rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
-                  >
-                    {busy ? "Submitting…" : "Subscribe"}
-                  </button>
+                  {paypalEnabled ? (
+                    <PayPalButtons
+                      style={{ layout: "vertical", label: "subscribe", shape: "rect" }}
+                      forceReRender={[count]}
+                      createSubscription={() =>
+                        startPaypalSubscription(
+                          "blocking",
+                          count,
+                          companiesRef.current.map((c) => c.trim()).filter((c) => c.length > 0)
+                        )
+                      }
+                      onApprove={handlePaypalApprove}
+                      onError={handlePaypalError}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={subscribeToBlocking}
+                      className="w-full rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {busy ? "Submitting…" : "Subscribe"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={busy}
@@ -327,5 +434,21 @@ export default function PricingClient() {
         </div>
       )}
     </main>
+  );
+
+  if (!paypalEnabled) return content;
+
+  return (
+    <PayPalScriptProvider
+      options={{
+        clientId: PAYPAL_CLIENT_ID,
+        intent: "subscription",
+        vault: true,
+        currency: "EUR",
+        components: "buttons",
+      }}
+    >
+      {content}
+    </PayPalScriptProvider>
   );
 }

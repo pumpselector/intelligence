@@ -27,20 +27,23 @@ export default async function SettingsPage() {
     supabase.from("profiles").select("created_at").eq("id", access.userId).single(),
     supabase
       .from("subscription_requests")
-      .select("plan_type, monthly_price, blocked_company_count, next_payment_date")
-      .in("status", ["active", "pending_payment"])
+      .select(
+        "plan_type, monthly_price, blocked_company_count, next_payment_date, status, cancel_at_period_end, pending_revised_block_count, pending_revised_price"
+      )
+      .in("status", ["active", "pending_payment", "past_due", "cancelled"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
   ]);
 
   const plan: PlanInfo = latestRequest ?? null;
+  const subscriptionCancelled = plan?.status === "cancelled";
 
   let blocked: BlockedCompany[] = [];
   let isFirstSubscription = true;
   let slotCount = 0;
 
-  if (paid) {
+  if (paid && !subscriptionCancelled) {
     const [{ data: blockedData }, { count: activeCount }] = await Promise.all([
       supabase
         .from("blocked_companies")
@@ -75,7 +78,11 @@ export default async function SettingsPage() {
             Blocked companies
           </h2>
 
-          {paid ? (
+          {paid && subscriptionCancelled ? (
+            <p className="mt-3 text-sm text-slate-600">
+              Your subscription is cancelled — competitor blocking has ended.
+            </p>
+          ) : paid ? (
             <BlockedCompaniesSection
               userId={access.userId}
               slotCount={slotCount}

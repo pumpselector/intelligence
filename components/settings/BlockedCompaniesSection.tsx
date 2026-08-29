@@ -94,6 +94,51 @@ export default function BlockedCompaniesSection({
   const [rows, setRows] = useState<BlockedCompany[]>(initial);
   const [keepSame, setKeepSame] = useState(true);
   const [newSlotKeys, setNewSlotKeys] = useState<string[]>([]);
+  const [revisionNotice, setRevisionNotice] = useState<
+    { tone: "ok" | "action" | "error"; text: string; url?: string } | null
+  >(null);
+
+  // After a change that moves the next-cycle block count (a billable add, or a
+  // slot given up), re-sync the PayPal subscription amount. The server recomputes
+  // the count from the block list itself, so no number is passed here.
+  async function syncRevision() {
+    try {
+      const res = await fetch("/api/paypal/revise-subscription", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as {
+        price?: number;
+        approvalUrl?: string | null;
+        unchanged?: boolean;
+        error?: string;
+      };
+      if (!res.ok) {
+        if (res.status === 404) return; // no billable subscription to revise
+        setRevisionNotice({
+          tone: "error",
+          text: data.error ?? "Could not update your subscription amount.",
+        });
+        return;
+      }
+      if (data.unchanged) return;
+      if (data.approvalUrl) {
+        setRevisionNotice({
+          tone: "action",
+          text: `Your monthly amount changes to ${formatEur(
+            data.price ?? 0
+          )} from your next billing date.`,
+          url: data.approvalUrl,
+        });
+        return;
+      }
+      setRevisionNotice({
+        tone: "ok",
+        text: `Saved. Your monthly amount changes to ${formatEur(
+          data.price ?? 0
+        )} from your next billing date.`,
+      });
+    } catch {
+      setRevisionNotice({ tone: "error", text: "Could not reach the billing service." });
+    }
+  }
 
   // Slots that exist only in the UI, not yet backed by a blocked_companies
   // row -- one stable id per open slot, created once from the initial
@@ -168,6 +213,7 @@ export default function BlockedCompaniesSection({
         .update({ status: "removed_pending" })
         .eq("id", sourceId);
       if (updateError) return updateError.message;
+      void syncRevision();
       return null;
     }
 
@@ -179,10 +225,14 @@ export default function BlockedCompaniesSection({
   }
 
   async function saveNewSlot(name: string): Promise<string | null> {
-    const { error: insertError } = await supabase
-      .from("blocked_companies")
-      .insert({ user_id: userId, company_name: name, status: "pending_next_cycle" });
+    const { error: insertError } = await supabase.from("blocked_companies").insert({
+      user_id: userId,
+      company_name: name,
+      status: "pending_next_cycle",
+      is_billable_addition: true,
+    });
     if (insertError) return insertError.message;
+    void syncRevision();
     return null;
   }
 
@@ -199,6 +249,33 @@ export default function BlockedCompaniesSection({
         If the company you want to block is already a subscriber, we&apos;ll contact you to resolve
         this — blocking is not possible for existing members.
       </p>
+
+      {revisionNotice && (
+        <div
+          className={`mt-3 rounded-md px-3 py-2 text-xs ${
+            revisionNotice.tone === "error"
+              ? "bg-red-50 text-red-700"
+              : revisionNotice.tone === "action"
+                ? "bg-amber-50 text-amber-800"
+                : "bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {revisionNotice.text}
+          {revisionNotice.url && (
+            <>
+              {" "}
+              <a
+                href={revisionNotice.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium underline"
+              >
+                Confirm with PayPal →
+              </a>
+            </>
+          )}
+        </div>
+      )}
 
       {totalSlots === 0 ? (
         <p className="mt-2 text-sm text-slate-500">You don&apos;t have any blocked-company slots yet.</p>
