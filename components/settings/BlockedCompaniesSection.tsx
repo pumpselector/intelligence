@@ -1,135 +1,287 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { PER_BLOCK_PRICE, formatEur } from "@/lib/pricing";
 
 export type BlockedCompany = {
   id: string;
   company_name: string;
   status: "pending_next_cycle" | "active" | "removed_pending" | string;
   effective_from: string | null;
+  requested_at: string;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  pending_next_cycle: "starts next billing cycle",
-  active: "active",
-  removed_pending: "removal pending",
-};
-
-export default function BlockedCompaniesSection({
-  userId,
-  initial,
+/** A single input + Save row. Shows a static confirmation line once saved. */
+function InlineSaveInput({
+  placeholder,
+  initialValue = "",
+  buttonLabel = "Save",
+  requireValue = true,
+  onSave,
+  savedLabel,
 }: {
-  userId: string;
-  initial: BlockedCompany[];
+  placeholder: string;
+  initialValue?: string;
+  buttonLabel?: string;
+  requireValue?: boolean;
+  onSave: (trimmed: string) => Promise<string | null>;
+  savedLabel: (trimmed: string) => string;
 }) {
-  const [supabase] = useState(() => createClient());
-  const [list, setList] = useState<BlockedCompany[]>(initial);
-  const [newName, setNewName] = useState("");
+  const [value, setValue] = useState(initialValue);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
 
-  async function addCompany(e: React.FormEvent) {
-    e.preventDefault();
-    const company_name = newName.trim();
-    if (!company_name || busy) return;
+  async function handleSave() {
+    const trimmed = value.trim();
     setBusy(true);
     setError(null);
-
-    const { data, error: insertError } = await supabase
-      .from("blocked_companies")
-      .insert({ user_id: userId, company_name, status: "pending_next_cycle" })
-      .select("id, company_name, status, effective_from")
-      .single();
-
+    const err = await onSave(trimmed);
     setBusy(false);
-    if (insertError || !data) {
-      setError(insertError?.message ?? "Could not add company.");
+    if (err) {
+      setError(err);
       return;
     }
-
-    setList((prev) => [...prev, data as BlockedCompany]);
-    setNewName("");
+    setSaved(savedLabel(trimmed));
   }
 
-  async function requestRemoval(id: string) {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-
-    const { error: updateError } = await supabase
-      .from("blocked_companies")
-      .update({ status: "removed_pending" })
-      .eq("id", id);
-
-    setBusy(false);
-    if (updateError) {
-      setError(updateError.message);
-      return;
-    }
-
-    setList((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "removed_pending" } : c))
-    );
+  if (saved !== null) {
+    return <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">{saved}</p>;
   }
 
   return (
-    <div className="mt-3">
-      <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-        Changes take effect from your next billing cycle. Your current plan remains active with the
-        existing list until then.
-      </p>
+    <div>
+      <div className="flex items-center gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-md border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-solid focus:border-slate-400"
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={busy || (requireValue && value.trim().length === 0)}
+          className="shrink-0 rounded-md bg-slate-900 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {busy ? "Saving…" : buttonLabel}
+        </button>
+      </div>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
 
-      {list.length > 0 && (
-        <ul className="mt-4 divide-y divide-slate-100">
-          {list.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-              <span
-                className={`text-sm font-medium ${
-                  c.status === "removed_pending" ? "text-slate-400 line-through" : "text-slate-800"
-                }`}
-              >
-                {c.company_name}
-              </span>
-              <span className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">
-                  {STATUS_LABEL[c.status] ?? c.status}
-                  {c.effective_from ? ` · effective from ${c.effective_from}` : ""}
-                </span>
-                {c.status !== "removed_pending" && (
-                  <button
-                    type="button"
-                    onClick={() => requestRemoval(c.id)}
-                    disabled={busy}
-                    className="rounded border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                )}
-              </span>
+export default function BlockedCompaniesSection({
+  userId,
+  slotCount,
+  initial,
+  isFirstSubscription,
+}: {
+  userId: string;
+  slotCount: number;
+  initial: BlockedCompany[];
+  isFirstSubscription: boolean;
+}) {
+  const [supabase] = useState(() => createClient());
+  const [rows, setRows] = useState<BlockedCompany[]>(initial);
+  const [keepSame, setKeepSame] = useState(true);
+  const [newSlotKeys, setNewSlotKeys] = useState<string[]>([]);
+
+  const activeRows = useMemo(
+    () =>
+      rows
+        .filter((r) => r.status === "active")
+        .sort((a, b) => a.requested_at.localeCompare(b.requested_at)),
+    [rows]
+  );
+  const namedActive = useMemo(
+    () => activeRows.filter((r) => r.company_name.trim().length > 0),
+    [activeRows]
+  );
+  const emptyActive = useMemo(
+    () => activeRows.filter((r) => r.company_name.trim().length === 0),
+    [activeRows]
+  );
+  const virtualEmptyCount = Math.max(0, slotCount - activeRows.length);
+  const totalSlots = namedActive.length + emptyActive.length + virtualEmptyCount;
+
+  // Filling an empty slot (an existing blank "active" row, or one of the N
+  // slots that has no row at all yet) takes effect immediately only for a
+  // user's very first fill ever -- otherwise it waits for the next cycle,
+  // same rule as the /pricing first-subscription check.
+  async function fillSlot(name: string, existingId: string | null): Promise<string | null> {
+    const status = isFirstSubscription ? "active" : "pending_next_cycle";
+
+    if (existingId) {
+      const { data, error: updateError } = await supabase
+        .from("blocked_companies")
+        .update({ company_name: name, status })
+        .eq("id", existingId)
+        .select("id, company_name, status, effective_from, requested_at")
+        .single();
+      if (updateError || !data) return updateError?.message ?? "Could not save.";
+      setRows((prev) => prev.map((r) => (r.id === existingId ? (data as BlockedCompany) : r)));
+      return null;
+    }
+
+    const { data, error: insertError } = await supabase
+      .from("blocked_companies")
+      .insert({ user_id: userId, company_name: name, status })
+      .select("id, company_name, status, effective_from, requested_at")
+      .single();
+    if (insertError || !data) return insertError?.message ?? "Could not save.";
+    setRows((prev) => [...prev, data as BlockedCompany]);
+    return null;
+  }
+
+  // Editing the "next cycle" list never touches the currently active rows.
+  // A new/changed name is queued as a separate pending_next_cycle row; a
+  // slot cleared out flags its current active row for removal. The admin
+  // reconciles pending vs. active rows by hand at the next billing cycle.
+  async function saveNextCycleSlot(name: string, sourceId: string | null): Promise<string | null> {
+    if (name === "") {
+      if (!sourceId) return null;
+      const { error: updateError } = await supabase
+        .from("blocked_companies")
+        .update({ status: "removed_pending" })
+        .eq("id", sourceId);
+      if (updateError) return updateError.message;
+      return null;
+    }
+
+    const { error: insertError } = await supabase
+      .from("blocked_companies")
+      .insert({ user_id: userId, company_name: name, status: "pending_next_cycle" });
+    if (insertError) return insertError.message;
+    return null;
+  }
+
+  async function saveNewSlot(name: string): Promise<string | null> {
+    const { error: insertError } = await supabase
+      .from("blocked_companies")
+      .insert({ user_id: userId, company_name: name, status: "pending_next_cycle" });
+    if (insertError) return insertError.message;
+    return null;
+  }
+
+  const nextCycleSlots = [
+    ...namedActive.map((r) => ({ key: r.id, sourceId: r.id as string | null, initialValue: r.company_name })),
+    ...emptyActive.map((r) => ({ key: r.id, sourceId: r.id as string | null, initialValue: "" })),
+    ...Array.from({ length: virtualEmptyCount }, (_, i) => ({
+      key: `virtual-${i}`,
+      sourceId: null as string | null,
+      initialValue: "",
+    })),
+  ];
+
+  return (
+    <div className="mt-3">
+      <p className="text-sm font-medium text-slate-700">Your active blocked companies</p>
+
+      {totalSlots === 0 ? (
+        <p className="mt-2 text-sm text-slate-500">You don&apos;t have any blocked-company slots yet.</p>
+      ) : (
+        <ul className="mt-2 divide-y divide-slate-100">
+          {namedActive.map((row) => (
+            <li key={row.id} className="py-2.5 text-sm font-medium text-slate-800">
+              {row.company_name}
+            </li>
+          ))}
+          {emptyActive.map((row) => (
+            <li key={row.id} className="py-2">
+              <InlineSaveInput
+                placeholder="Not set yet"
+                onSave={(name) => fillSlot(name, row.id)}
+                savedLabel={(name) =>
+                  isFirstSubscription ? name : `${name} — starts next billing cycle`
+                }
+              />
+            </li>
+          ))}
+          {Array.from({ length: virtualEmptyCount }, (_, i) => (
+            <li key={`virtual-${i}`} className="py-2">
+              <InlineSaveInput
+                placeholder="Not set yet"
+                onSave={(name) => fillSlot(name, null)}
+                savedLabel={(name) =>
+                  isFirstSubscription ? name : `${name} — starts next billing cycle`
+                }
+              />
             </li>
           ))}
         </ul>
       )}
 
-      <form onSubmit={addCompany} className="mt-4 flex gap-2">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Company name or domain"
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
-        />
-        <button
-          type="submit"
-          disabled={busy || newName.trim().length === 0}
-          className="shrink-0 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Add
-        </button>
-      </form>
+      {totalSlots > 0 && (
+        <>
+          <label className="mt-4 flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={keepSame}
+              onChange={(e) => setKeepSame(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              Keep the same companies next cycle
+              <span className="block text-xs text-slate-400">
+                Uncheck to change your list for next cycle. Your current companies stay active until
+                then.
+              </span>
+            </span>
+          </label>
 
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          {!keepSame && (
+            <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">
+                Leaving a box empty will cancel that slot next cycle. Your invoice will decrease by{" "}
+                {formatEur(PER_BLOCK_PRICE)}/month per removed slot.
+              </p>
+              <div className="mt-2 flex flex-col gap-2">
+                {nextCycleSlots.map((slot) => (
+                  <InlineSaveInput
+                    key={slot.key}
+                    placeholder="Not set yet"
+                    initialValue={slot.initialValue}
+                    requireValue={false}
+                    onSave={(name) => saveNextCycleSlot(name, slot.sourceId)}
+                    savedLabel={(name) =>
+                      name === ""
+                        ? "Slot cancelled — pending for next cycle"
+                        : `${name} — pending for next cycle`
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="mt-4 border-t border-slate-100 pt-4">
+        {newSlotKeys.map((key) => (
+          <div key={key} className="mb-2">
+            <InlineSaveInput
+              placeholder="New company name or domain"
+              onSave={(name) => saveNewSlot(name)}
+              savedLabel={(name) => `${name} — pending for next cycle`}
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setNewSlotKeys((prev) => [...prev, crypto.randomUUID()])}
+          className="text-sm font-medium text-amber-700 transition-colors hover:text-amber-800"
+        >
+          + Add another company
+        </button>
+        <p className="mt-1 text-xs text-slate-400">
+          This adds a new slot starting next billing cycle. +{formatEur(PER_BLOCK_PRICE)}/month will be
+          added to your invoice.
+        </p>
+      </div>
     </div>
   );
 }

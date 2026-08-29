@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-/** Right-side auth control in the header: log in / sign up, or signed-in email + sign out. */
+/** Right-side auth control in the header: log in / sign up, or signed-in email + account dropdown. */
 export default function HeaderAuth() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -24,7 +26,19 @@ export default function HeaderAuth() {
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
   async function handleSignOut() {
+    setMenuOpen(false);
     await supabase.auth.signOut();
     setEmail(null);
     router.refresh();
@@ -52,21 +66,34 @@ export default function HeaderAuth() {
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <Link
-        href="/settings"
-        className="hidden max-w-[180px] truncate text-xs text-slate-500 transition-colors hover:text-slate-900 sm:inline"
-        title={`${email} — Settings`}
-      >
-        {email}
-      </Link>
+    <div ref={menuRef} className="relative">
       <button
         type="button"
-        onClick={handleSignOut}
-        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+        onClick={() => setMenuOpen((v) => !v)}
+        className="max-w-[120px] truncate text-xs text-slate-500 transition-colors hover:text-slate-900 sm:max-w-[180px]"
+        title={email}
       >
-        Sign out
+        {email}
       </button>
+
+      {menuOpen && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-40 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+          <Link
+            href="/settings"
+            onClick={() => setMenuOpen(false)}
+            className="block px-3 py-2 text-xs text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Settings
+          </Link>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="block w-full px-3 py-2 text-left text-xs text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
     </div>
   );
 }

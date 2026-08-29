@@ -4,6 +4,7 @@ import { getAccess, hasFullAccess } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import ChangePasswordSection from "@/components/settings/ChangePasswordSection";
 import ContactSection from "@/components/settings/ContactSection";
+import PlanSection, { type PlanInfo } from "@/components/settings/PlanSection";
 import BlockedCompaniesSection, {
   type BlockedCompany,
 } from "@/components/settings/BlockedCompaniesSection";
@@ -20,15 +21,39 @@ export default async function SettingsPage() {
   if (access.level === 0 || !access.userId) redirect("/login");
 
   const paid = hasFullAccess(access.level);
+  const supabase = await createClient();
+
+  const [{ data: profile }, { data: latestRequest }] = await Promise.all([
+    supabase.from("profiles").select("created_at").eq("id", access.userId).single(),
+    supabase
+      .from("subscription_requests")
+      .select("plan_type, monthly_price, blocked_company_count, next_payment_date")
+      .in("status", ["active", "pending_payment"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const plan: PlanInfo = latestRequest ?? null;
 
   let blocked: BlockedCompany[] = [];
+  let isFirstSubscription = true;
+  let slotCount = 0;
+
   if (paid) {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("blocked_companies")
-      .select("id, company_name, status, effective_from")
-      .order("requested_at", { ascending: true });
-    blocked = (data ?? []) as BlockedCompany[];
+    const [{ data: blockedData }, { count: activeCount }] = await Promise.all([
+      supabase
+        .from("blocked_companies")
+        .select("id, company_name, status, effective_from, requested_at")
+        .order("requested_at", { ascending: true }),
+      supabase
+        .from("subscription_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "active"),
+    ]);
+    blocked = (blockedData ?? []) as BlockedCompany[];
+    isFirstSubscription = (activeCount ?? 0) === 0;
+    slotCount = plan?.blocked_company_count ?? 0;
   }
 
   return (
@@ -36,6 +61,10 @@ export default async function SettingsPage() {
       <div className="mx-auto w-full max-w-2xl">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>
         <p className="mt-1 text-sm text-slate-500">{access.email}</p>
+
+        <div className="mt-6">
+          <PlanSection plan={plan} memberSince={profile?.created_at ?? null} />
+        </div>
 
         <ChangePasswordSection email={access.email} />
 
@@ -47,7 +76,12 @@ export default async function SettingsPage() {
           </h2>
 
           {paid ? (
-            <BlockedCompaniesSection userId={access.userId} initial={blocked} />
+            <BlockedCompaniesSection
+              userId={access.userId}
+              slotCount={slotCount}
+              initial={blocked}
+              isFirstSubscription={isFirstSubscription}
+            />
           ) : (
             <div className="mt-3 text-sm text-slate-600">
               Competitor blocking is part of a paid subscription.{" "}

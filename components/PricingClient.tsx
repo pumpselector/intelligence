@@ -38,7 +38,7 @@ export default function PricingClient() {
     return user.id;
   }
 
-  async function subscribe(plan: PlanType, price: number, blocked: string[]) {
+  async function subscribe(plan: PlanType, price: number, blocked: string[], blockedCount: number) {
     setSubmit({ plan, error: null });
 
     const userId = await requireUserId();
@@ -61,7 +61,7 @@ export default function PricingClient() {
 
     const { error: reqError } = await supabase
       .from("subscription_requests")
-      .insert({ user_id: userId, plan_type: plan, monthly_price: price });
+      .insert({ user_id: userId, plan_type: plan, monthly_price: price, blocked_company_count: blockedCount });
 
     if (reqError) {
       setSubmit({ plan: null, error: reqError.message });
@@ -123,12 +123,12 @@ export default function PricingClient() {
 
   function subscribeToStandard() {
     setModalOpen(false);
-    subscribe("standard", BASE_PRICE, []);
+    subscribe("standard", BASE_PRICE, [], 0);
   }
 
   function subscribeToBlocking() {
     const filled = companies.map((c) => c.trim()).filter((c) => c.length > 0);
-    subscribe("blocking", blockingPrice(count), filled);
+    subscribe("blocking", blockingPrice(count), filled, count);
   }
 
   return (
@@ -161,7 +161,7 @@ export default function PricingClient() {
             <button
               type="button"
               disabled={busy}
-              onClick={() => subscribe("standard", BASE_PRICE, [])}
+              onClick={() => subscribe("standard", BASE_PRICE, [], 0)}
               className="mt-6 w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
             >
               {submit.plan === "standard" ? "Submitting…" : "Select"}
