@@ -3,7 +3,7 @@ import { BASE_PRICE, PER_BLOCK_PRICE, formatEur } from "@/lib/pricing";
 
 export default function PricingPreview() {
   return (
-    <section className="bg-[#F0F9FD]">
+    <section id="pricing" className="scroll-mt-20 bg-[#F0F9FD]">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="text-center">
           <h2 className="text-2xl font-semibold tracking-tight text-[#16243D] sm:text-3xl">Pricing</h2>

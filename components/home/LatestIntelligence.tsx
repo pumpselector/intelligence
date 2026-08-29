@@ -20,7 +20,7 @@ export default function LatestIntelligence({ items }: { items: DistributorNews[]
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[#53657A]">
-            Latest Intelligence
+            Latest Changes in Dealers
           </span>
           <Link
             href="/news"

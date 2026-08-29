@@ -18,7 +18,7 @@ export default function AccessBanner({ level, emailVerified }: Props) {
   let message: string;
   let pricingLink = false;
   if (level === 0) {
-    message = "Sign up and subscribe to view pump producer and dealer details.";
+    message = "Sign up and subscribe to view pump producer and pump dealer details.";
   } else if (level === 1 && !emailVerified) {
     message = "Please confirm your email address to continue.";
   } else if (level === 1) {

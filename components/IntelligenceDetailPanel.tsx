@@ -18,7 +18,7 @@ async function exportDealersToExcel(rows: Dealer[]) {
     "Pump Producer": hasValue(row.uretici) ? row.uretici : "",
     "Pump Type": hasValue(row.pump) ? row.pump : "",
     Country: hasValue(row.bayi_ulke) ? row.bayi_ulke : "",
-    "Dealer Name": hasValue(row.bayi_adi) ? row.bayi_adi : "",
+    "Pump Dealer Name": hasValue(row.bayi_adi) ? row.bayi_adi : "",
     Address: hasValue(row.bayi_adres) ? row.bayi_adres : "",
     Phone: hasValue(row.bayi_telefon) ? row.bayi_telefon : "",
     Email: hasValue(row.bayi_email) ? row.bayi_email : "",
@@ -27,7 +27,7 @@ async function exportDealersToExcel(rows: Dealer[]) {
 
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Dealers");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Pump Dealers");
 
   const today = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(workbook, `pump-dealers-export-${today}.xlsx`);
@@ -146,7 +146,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
         <div className="grid grid-cols-[2fr_auto_3fr] items-start gap-5 px-8 py-8">
           {/* Left: Producer only */}
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Producer</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Pump Producer</span>
             <div className="mt-1.5 flex items-start gap-2">
               {hasValue(row.uretici) && <span className="mt-1.5"><ProducerDot producer={row.uretici} /></span>}
               <p className="break-words text-xl font-bold leading-tight text-slate-900">
@@ -171,7 +171,7 @@ function DealerDetailModal({ row, onClose }: { row: Dealer; onClose: () => void 
 
           {/* Right: Dealer name + all dealer info stacked below */}
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Dealer</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Pump Dealer</span>
             <p className="mt-1.5 flex flex-wrap items-start gap-1.5 break-words text-xl font-bold leading-tight text-slate-900">
               <span>{hasValue(row.bayi_adi) ? row.bayi_adi : "—"}</span>
               {hasActiveNote(row) && <NoteBadge text={row.removed!} />}
@@ -334,7 +334,7 @@ export default function IntelligenceDetailPanel({
                 <SortHeader label="Country" column="bayi_ulke" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Pump Producer" column="uretici" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <SortHeader label="Pump Type" column="pump" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
-                <SortHeader label="Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortHeader label="Pump Dealer" column="bayi_adi" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <th className="py-2.5 pl-2 pr-4">
                   <span className="sr-only">Actions</span>
                 </th>

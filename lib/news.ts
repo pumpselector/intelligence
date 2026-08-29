@@ -9,6 +9,10 @@ export type DistributorNews = {
   degisiklik_turu: string;
   pump: string | null;
   detay: string | null;
+  bayi_adres: string | null;
+  bayi_telefon: string | null;
+  bayi_email: string | null;
+  bayi_web: string | null;
 };
 
 const MONTH_NAMES = [
@@ -48,7 +52,9 @@ export async function getAllNews(): Promise<DistributorNews[]> {
   while (true) {
     const { data, error } = await supabase
       .from("distributor_news")
-      .select("id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,pump,detay")
+      .select(
+        "id,haber_tarihi,uretici,bayi_adi,ulke,degisiklik_turu,pump,detay,bayi_adres,bayi_telefon,bayi_email,bayi_web"
+      )
       .order("haber_tarihi", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 

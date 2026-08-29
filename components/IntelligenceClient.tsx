@@ -172,7 +172,7 @@ export default function IntelligenceClient({ dealers, restricted = false }: Inte
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search dealer or producer..."
+                placeholder="Search pump dealer or producer..."
                 className="w-full rounded-md border border-slate-300 py-2 pl-8 pr-3 text-sm text-slate-900 outline-none focus:border-slate-400"
               />
             </div>
@@ -238,7 +238,7 @@ export default function IntelligenceClient({ dealers, restricted = false }: Inte
             )}
 
             <div className="grid grid-cols-2 gap-y-3 border-t border-slate-100 pt-3">
-              <Stat value={summary.dealers} label="Dealers" />
+              <Stat value={summary.dealers} label="Pump Dealers" />
               <Stat value={summary.producers} label="Pump Producers" />
               <Stat value={summary.countries} label="Countries" />
               <Stat value={summary.pumpModels} label="Pump Models" />

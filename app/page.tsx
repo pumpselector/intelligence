@@ -16,7 +16,7 @@ export default async function Home() {
     { label: "Pump Models", value: new Set(dealers.map((d) => d.pump).filter(hasValue)).size },
     { label: "Pump Producers", value: countUniqueProducers(dealers) },
     { label: "Countries", value: new Set(dealers.map((d) => d.bayi_ulke).filter(hasValue)).size },
-    { label: "Dealers", value: countUniqueDealers(dealers) },
+    { label: "Pump Dealers", value: countUniqueDealers(dealers) },
   ];
 
   return (

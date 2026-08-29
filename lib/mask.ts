@@ -60,7 +60,15 @@ export function maskDealer(dealer: Dealer): Dealer {
   return masked;
 }
 
-const MASKED_NEWS_FIELDS: (keyof DistributorNews)[] = ["uretici", "bayi_adi", "detay"];
+const MASKED_NEWS_FIELDS: (keyof DistributorNews)[] = [
+  "uretici",
+  "bayi_adi",
+  "detay",
+  "bayi_adres",
+  "bayi_telefon",
+  "bayi_email",
+  "bayi_web",
+];
 
 export function maskNews(item: DistributorNews): DistributorNews {
   const masked = { ...item };
