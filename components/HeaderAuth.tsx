@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 /** Right-side auth control in the header: log in / sign up, or signed-in email + account dropdown. */
@@ -70,10 +71,13 @@ export default function HeaderAuth() {
       <button
         type="button"
         onClick={() => setMenuOpen((v) => !v)}
-        className="max-w-[120px] truncate text-xs text-slate-500 transition-colors hover:text-slate-900 sm:max-w-[180px]"
+        className="flex items-center gap-1 text-xs text-slate-500 transition-colors hover:text-slate-900"
         title={email}
       >
-        {email}
+        <span className="max-w-[120px] truncate sm:max-w-[180px]">{email}</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 transition-transform ${menuOpen ? "rotate-180" : ""}`}
+        />
       </button>
 
       {menuOpen && (

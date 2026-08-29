@@ -280,6 +280,10 @@ export default function PricingClient() {
                 <p className="mt-1 text-sm text-slate-500">
                   Optional — leave any of these blank and add the names later from Settings.
                 </p>
+                <p className="mt-2 text-xs text-slate-400">
+                  If the company you want to block is already a subscriber, we&apos;ll contact you to
+                  resolve this — blocking is not possible for existing members.
+                </p>
 
                 <div className="mt-4 flex flex-col gap-2">
                   {companies.map((value, index) => (

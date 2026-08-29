@@ -6,10 +6,8 @@ export default function Hero() {
     <section className="bg-[#F0F9FD]">
       <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-12 px-6 py-16 lg:grid-cols-[1fr_1.05fr] lg:gap-10 lg:px-8 lg:py-20">
         <div className="flex flex-col items-start text-left">
-          <h1 className="text-[2.5rem] font-semibold leading-[1.12] tracking-tight text-[#16243D] sm:text-5xl">
-            Tracking the Pump Industry,
-            <br />
-            in Real Time.
+          <h1 className="text-balance text-[2.5rem] font-semibold leading-[1.12] tracking-tight text-[#16243D] sm:text-5xl">
+            Tracking the Pump Industry, in <span className="whitespace-nowrap">Real Time.</span>
           </h1>
 
           <p className="mt-5 max-w-md text-base leading-relaxed text-[#53657A] sm:text-lg">

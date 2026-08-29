@@ -44,7 +44,7 @@ export default async function SettingsPage() {
     const [{ data: blockedData }, { count: activeCount }] = await Promise.all([
       supabase
         .from("blocked_companies")
-        .select("id, company_name, status, effective_from, requested_at")
+        .select("id, company_name, status, effective_from, requested_at, active_until")
         .order("requested_at", { ascending: true }),
       supabase
         .from("subscription_requests")

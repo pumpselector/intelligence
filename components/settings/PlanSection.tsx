@@ -8,8 +8,8 @@ export type PlanInfo = {
   next_payment_date: string | null;
 } | null;
 
-function formatMonthYear(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric" }).format(new Date(iso));
+function formatFullDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
 function formatDate(iso: string): string {
@@ -48,7 +48,7 @@ export default function PlanSection({
           <div>
             <dt className="text-xs text-slate-400">Member since</dt>
             <dd className="mt-0.5 font-medium text-slate-900">
-              {memberSince ? formatMonthYear(memberSince) : "Not set yet"}
+              {memberSince ? formatFullDate(memberSince) : "Not set yet"}
             </dd>
           </div>
           <div>

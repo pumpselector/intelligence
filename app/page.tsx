@@ -2,6 +2,7 @@ import Hero from "@/components/Hero";
 import NetworkCoverage from "@/components/home/NetworkCoverage";
 import LatestIntelligence from "@/components/home/LatestIntelligence";
 import ProductPillars from "@/components/home/ProductPillars";
+import PricingPreview from "@/components/home/PricingPreview";
 import FinalCta from "@/components/home/FinalCta";
 import { countUniqueDealers, countUniqueProducers, getAllDealers, hasValue } from "@/lib/dealers";
 import { getAllNews } from "@/lib/news";
@@ -24,6 +25,7 @@ export default async function Home() {
       <NetworkCoverage stats={stats} />
       <LatestIntelligence items={news.slice(0, 3)} />
       <ProductPillars />
+      <PricingPreview />
       <FinalCta />
     </main>
   );

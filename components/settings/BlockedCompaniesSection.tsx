@@ -10,7 +10,12 @@ export type BlockedCompany = {
   status: "pending_next_cycle" | "active" | "removed_pending" | string;
   effective_from: string | null;
   requested_at: string;
+  active_until: string | null;
 };
+
+function formatActiveUntil(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
 
 /** A single input + Save row. Shows a static confirmation line once saved. */
 function InlineSaveInput({
@@ -90,6 +95,20 @@ export default function BlockedCompaniesSection({
   const [keepSame, setKeepSame] = useState(true);
   const [newSlotKeys, setNewSlotKeys] = useState<string[]>([]);
 
+  // Slots that exist only in the UI, not yet backed by a blocked_companies
+  // row -- one stable id per open slot, created once from the initial
+  // deficit. Filling one removes it from this array (never re-derived from a
+  // shrinking count), so a slot never gets silently reassigned to a
+  // different position after a save -- that reassignment was the cause of
+  // the "extra box" bug: keying an Array.from({length}) by position let React
+  // hand a just-saved slot's stateful input to whatever slot next occupied
+  // that index, dragging its "saved" confirmation along with it.
+  const [virtualSlots, setVirtualSlots] = useState<string[]>(() => {
+    const initialActiveCount = initial.filter((r) => r.status === "active").length;
+    const deficit = Math.max(0, slotCount - initialActiveCount);
+    return Array.from({ length: deficit }, () => crypto.randomUUID());
+  });
+
   const activeRows = useMemo(
     () =>
       rows
@@ -105,35 +124,35 @@ export default function BlockedCompaniesSection({
     () => activeRows.filter((r) => r.company_name.trim().length === 0),
     [activeRows]
   );
-  const virtualEmptyCount = Math.max(0, slotCount - activeRows.length);
-  const totalSlots = namedActive.length + emptyActive.length + virtualEmptyCount;
+  const totalSlots = namedActive.length + emptyActive.length + virtualSlots.length;
 
   // Filling an empty slot (an existing blank "active" row, or one of the N
   // slots that has no row at all yet) takes effect immediately only for a
   // user's very first fill ever -- otherwise it waits for the next cycle,
   // same rule as the /pricing first-subscription check.
-  async function fillSlot(name: string, existingId: string | null): Promise<string | null> {
+  async function fillExistingSlot(name: string, existingId: string): Promise<string | null> {
     const status = isFirstSubscription ? "active" : "pending_next_cycle";
+    const { data, error: updateError } = await supabase
+      .from("blocked_companies")
+      .update({ company_name: name, status })
+      .eq("id", existingId)
+      .select("id, company_name, status, effective_from, requested_at, active_until")
+      .single();
+    if (updateError || !data) return updateError?.message ?? "Could not save.";
+    setRows((prev) => prev.map((r) => (r.id === existingId ? (data as BlockedCompany) : r)));
+    return null;
+  }
 
-    if (existingId) {
-      const { data, error: updateError } = await supabase
-        .from("blocked_companies")
-        .update({ company_name: name, status })
-        .eq("id", existingId)
-        .select("id, company_name, status, effective_from, requested_at")
-        .single();
-      if (updateError || !data) return updateError?.message ?? "Could not save.";
-      setRows((prev) => prev.map((r) => (r.id === existingId ? (data as BlockedCompany) : r)));
-      return null;
-    }
-
+  async function fillVirtualSlot(name: string, virtualKey: string): Promise<string | null> {
+    const status = isFirstSubscription ? "active" : "pending_next_cycle";
     const { data, error: insertError } = await supabase
       .from("blocked_companies")
       .insert({ user_id: userId, company_name: name, status })
-      .select("id, company_name, status, effective_from, requested_at")
+      .select("id, company_name, status, effective_from, requested_at, active_until")
       .single();
     if (insertError || !data) return insertError?.message ?? "Could not save.";
     setRows((prev) => [...prev, data as BlockedCompany]);
+    setVirtualSlots((prev) => prev.filter((k) => k !== virtualKey));
     return null;
   }
 
@@ -170,42 +189,47 @@ export default function BlockedCompaniesSection({
   const nextCycleSlots = [
     ...namedActive.map((r) => ({ key: r.id, sourceId: r.id as string | null, initialValue: r.company_name })),
     ...emptyActive.map((r) => ({ key: r.id, sourceId: r.id as string | null, initialValue: "" })),
-    ...Array.from({ length: virtualEmptyCount }, (_, i) => ({
-      key: `virtual-${i}`,
-      sourceId: null as string | null,
-      initialValue: "",
-    })),
+    ...virtualSlots.map((key) => ({ key, sourceId: null as string | null, initialValue: "" })),
   ];
 
   return (
     <div className="mt-3">
       <p className="text-sm font-medium text-slate-700">Your active blocked companies</p>
+      <p className="mt-1 text-xs text-slate-400">
+        If the company you want to block is already a subscriber, we&apos;ll contact you to resolve
+        this — blocking is not possible for existing members.
+      </p>
 
       {totalSlots === 0 ? (
         <p className="mt-2 text-sm text-slate-500">You don&apos;t have any blocked-company slots yet.</p>
       ) : (
         <ul className="mt-2 divide-y divide-slate-100">
           {namedActive.map((row) => (
-            <li key={row.id} className="py-2.5 text-sm font-medium text-slate-800">
-              {row.company_name}
+            <li key={row.id} className="flex items-center justify-between gap-2 py-2.5">
+              <span className="text-sm font-medium text-slate-800">{row.company_name}</span>
+              {row.active_until && (
+                <span className="shrink-0 text-xs text-slate-400">
+                  Active until: {formatActiveUntil(row.active_until)}
+                </span>
+              )}
             </li>
           ))}
           {emptyActive.map((row) => (
             <li key={row.id} className="py-2">
               <InlineSaveInput
                 placeholder="Not set yet"
-                onSave={(name) => fillSlot(name, row.id)}
+                onSave={(name) => fillExistingSlot(name, row.id)}
                 savedLabel={(name) =>
                   isFirstSubscription ? name : `${name} — starts next billing cycle`
                 }
               />
             </li>
           ))}
-          {Array.from({ length: virtualEmptyCount }, (_, i) => (
-            <li key={`virtual-${i}`} className="py-2">
+          {virtualSlots.map((key) => (
+            <li key={key} className="py-2">
               <InlineSaveInput
                 placeholder="Not set yet"
-                onSave={(name) => fillSlot(name, null)}
+                onSave={(name) => fillVirtualSlot(name, key)}
                 savedLabel={(name) =>
                   isFirstSubscription ? name : `${name} — starts next billing cycle`
                 }
