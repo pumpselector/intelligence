@@ -75,7 +75,10 @@ export async function POST(request: Request) {
     subscriber: user.email ? { email_address: user.email } : undefined,
     application_context: {
       brand_name: "PumpRadar24",
-      shipping_preference: "NO_SHIPPING_ADDRESS",
+      // Digital subscription, no physical fulfilment. PayPal's enum is
+      // GET_FROM_FILE | NO_SHIPPING | SET_PROVIDED_ADDRESS — "NO_SHIPPING_ADDRESS"
+      // is rejected with INVALID_PARAMETER_VALUE.
+      shipping_preference: "NO_SHIPPING",
       user_action: "SUBSCRIBE_NOW",
       payment_method: {
         payer_selected: "PAYPAL",
