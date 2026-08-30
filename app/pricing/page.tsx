@@ -9,11 +9,11 @@ export const metadata = {
 
 export default async function PricingPage() {
   const access = await getAccess();
-  // Level 1 = signed in but not yet admin-approved. Those users must not be
-  // able to start a subscription (server also enforces this — see
-  // /api/paypal/create-subscription). Visitors (level 0) are left enabled: the
-  // buttons bounce them to /login.
-  const needsApproval = access.level === 1;
+  // Only admin-approved users (level >= 2) can subscribe. Everyone else —
+  // visitors with no session AND signed-in-but-unapproved users — sees the
+  // "wait for approval" message instead of any payment button. The server
+  // enforces the same rule in /api/paypal/create-subscription.
+  const canSubscribe = access.level >= 2;
 
-  return <PricingClient canSubscribe={!needsApproval} />;
+  return <PricingClient canSubscribe={canSubscribe} />;
 }

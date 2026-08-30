@@ -15,25 +15,20 @@ export const metadata = {
   title: "Settings — PumpRadar24",
 };
 
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ revised?: string }>;
-}) {
+export default async function SettingsPage() {
   const access = await getAccess();
 
   if (access.level === 0 || !access.userId) redirect("/login");
 
   const paid = hasFullAccess(access.level);
   const supabase = await createClient();
-  const { revised } = await searchParams;
 
   const [{ data: profile }, { data: latestRequest }] = await Promise.all([
     supabase.from("profiles").select("created_at").eq("id", access.userId).single(),
     supabase
       .from("subscription_requests")
       .select(
-        "plan_type, monthly_price, blocked_company_count, next_payment_date, status, cancel_at_period_end, pending_revised_block_count, pending_revised_price, pending_revision_approval_url"
+        "plan_type, monthly_price, blocked_company_count, next_payment_date, status, cancel_at_period_end"
       )
       .in("status", ["active", "pending_payment", "past_due", "cancelled"])
       .order("created_at", { ascending: false })
@@ -63,18 +58,6 @@ export default async function SettingsPage({
       <div className="mx-auto w-full max-w-2xl">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Settings</h1>
         <p className="mt-1 text-sm text-slate-500">{access.email}</p>
-
-        {revised === "success" && (
-          <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-            Thanks — your revised monthly amount is confirmed and applies from your next billing cycle.
-          </p>
-        )}
-        {revised === "cancelled" && (
-          <p className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            You left PayPal without approving the new amount. Your subscription is unchanged — you can
-            approve it any time from the plan section below.
-          </p>
-        )}
 
         <div className="mt-6">
           <PlanSection plan={plan} memberSince={profile?.created_at ?? null} />

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { formatEur } from "@/lib/pricing";
 import CancelSubscriptionButton from "@/components/settings/CancelSubscriptionButton";
-import ApproveRevisionButton from "@/components/settings/ApproveRevisionButton";
 
 export type PlanInfo = {
   plan_type: string;
@@ -10,9 +9,6 @@ export type PlanInfo = {
   next_payment_date: string | null;
   status?: string;
   cancel_at_period_end?: boolean | null;
-  pending_revised_block_count?: number | null;
-  pending_revised_price?: number | null;
-  pending_revision_approval_url?: string | null;
 } | null;
 
 function formatFullDate(iso: string): string {
@@ -34,9 +30,6 @@ export default function PlanSection({
 }) {
   const cancelled = plan?.status === "cancelled";
   const cancellable = plan?.status === "active" || plan?.status === "past_due";
-  const pendingRevision =
-    plan?.pending_revised_price != null && plan.pending_revised_price !== plan.monthly_price;
-  const approvalUrl = plan?.pending_revision_approval_url ?? null;
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-6">
@@ -74,27 +67,6 @@ export default function PlanSection({
               </dd>
             </div>
           </dl>
-
-          {pendingRevision && (
-            <div className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <p>
-                Scheduled change: from your next billing date your plan becomes{" "}
-                <span className="font-medium">
-                  {plan.pending_revised_block_count}{" "}
-                  {plan.pending_revised_block_count === 1 ? "company" : "companies"}
-                </span>{" "}
-                at <span className="font-medium">{formatEur(plan.pending_revised_price!)}/month</span>.
-              </p>
-              {approvalUrl && (
-                <>
-                  <p className="mt-1 font-medium">
-                    This won&apos;t take effect until you approve the new amount with PayPal.
-                  </p>
-                  <ApproveRevisionButton fallbackUrl={approvalUrl} />
-                </>
-              )}
-            </div>
-          )}
 
           {cancelled ? (
             <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">

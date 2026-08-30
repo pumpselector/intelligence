@@ -13,26 +13,19 @@ type WebhookEvent = {
     custom_id?: string;
     billing_agreement_id?: string; // PAYMENT.SALE.COMPLETED
     billing_info?: { next_billing_time?: string };
-    amount?: { total?: string; currency?: string }; // PAYMENT.SALE.COMPLETED
   };
 };
 
 type SubscriptionRequestRow = {
   id: string;
   user_id: string;
-  monthly_price: number;
   cancel_at_period_end: boolean | null;
-  pending_revised_block_count: number | null;
-  pending_revised_price: number | null;
-  pending_revised_plan_type: string | null;
-  pending_revision_approval_url: string | null;
 };
 
 /**
  * PayPal webhook target. Configure a webhook in the PayPal dashboard pointing at
  * `<site>/api/webhooks/paypal`, subscribed to:
  *   BILLING.SUBSCRIPTION.ACTIVATED
- *   BILLING.SUBSCRIPTION.UPDATED        (revise approved -> apply new amount)
  *   BILLING.SUBSCRIPTION.CANCELLED
  *   BILLING.SUBSCRIPTION.EXPIRED
  *   BILLING.SUBSCRIPTION.PAYMENT.FAILED
@@ -73,9 +66,7 @@ export async function POST(request: Request) {
 
   const { data: reqRow } = await admin
     .from("subscription_requests")
-    .select(
-      "id, user_id, monthly_price, cancel_at_period_end, pending_revised_block_count, pending_revised_price, pending_revised_plan_type, pending_revision_approval_url"
-    )
+    .select("id, user_id, cancel_at_period_end")
     .eq("paypal_subscription_id", subscriptionId)
     .maybeSingle<SubscriptionRequestRow>();
 
@@ -105,31 +96,10 @@ export async function POST(request: Request) {
       break;
     }
 
-    case "BILLING.SUBSCRIPTION.UPDATED": {
-      // The buyer approved a revise() — make the queued amount the live amount
-      // and drop the now-stale approval link.
-      if (reqRow.pending_revised_price == null) break;
-      await admin
-        .from("subscription_requests")
-        .update({
-          // Set only on a Standard -> Blocking switch (migration 0018).
-          ...(reqRow.pending_revised_plan_type
-            ? { plan_type: reqRow.pending_revised_plan_type }
-            : {}),
-          blocked_company_count: reqRow.pending_revised_block_count,
-          monthly_price: reqRow.pending_revised_price,
-          pending_revised_block_count: null,
-          pending_revised_price: null,
-          pending_revised_plan_type: null,
-          pending_revision_approval_url: null,
-        })
-        .eq("id", reqRow.id);
-      break;
-    }
-
     case "PAYMENT.SALE.COMPLETED": {
       // Recurring payment cleared — refresh the next billing date from the
-      // subscription (the sale payload doesn't include it).
+      // subscription (the sale payload doesn't include it) and keep the user
+      // marked paid. Amount / block-list changes are reconciled manually now.
       let nextPaymentDate: string | null = null;
       try {
         const sub = await paypalRequest<{ billing_info?: { next_billing_time?: string } }>(
@@ -139,42 +109,10 @@ export async function POST(request: Request) {
       } catch {
         /* keep whatever date is already stored */
       }
-      // A pending revise that never produced a SUBSCRIPTION.UPDATED can still be
-      // reconciled here — but ONLY once PayPal is actually charging the new
-      // amount. If the buyer never approved a price increase, PayPal keeps
-      // billing the old amount, and promoting the pending values would put our
-      // records ahead of reality.
-      const saleTotal = Number(resource.amount?.total ?? NaN);
-      const pendingPrice =
-        reqRow.pending_revised_price != null ? Number(reqRow.pending_revised_price) : null;
-      const chargedNewAmount =
-        pendingPrice != null &&
-        Number.isFinite(saleTotal) &&
-        Math.abs(saleTotal - pendingPrice) < 0.01;
-      // No approval was ever outstanding (a decrease PayPal applied silently) —
-      // safe to reconcile even if we can't read the sale amount.
-      const noApprovalWasNeeded =
-        pendingPrice != null && !reqRow.pending_revision_approval_url;
-
-      const revisionApplied =
-        chargedNewAmount || noApprovalWasNeeded
-          ? {
-              ...(reqRow.pending_revised_plan_type
-                ? { plan_type: reqRow.pending_revised_plan_type }
-                : {}),
-              blocked_company_count: reqRow.pending_revised_block_count,
-              monthly_price: reqRow.pending_revised_price,
-              pending_revised_block_count: null,
-              pending_revised_price: null,
-              pending_revised_plan_type: null,
-              pending_revision_approval_url: null,
-            }
-          : {};
       await admin
         .from("subscription_requests")
         .update({
           status: "active",
-          ...revisionApplied,
           ...(nextPaymentDate ? { next_payment_date: nextPaymentDate } : {}),
         })
         .eq("id", reqRow.id);

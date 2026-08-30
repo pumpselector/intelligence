@@ -22,12 +22,13 @@ type ModalStep = 1 | 2;
 // switch on PayPal checkout with no code change.
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 
-const APPROVAL_NOTE = "Your account must be approved by an admin before you can subscribe.";
+const APPROVAL_NOTE =
+  "Once you sign up, our admin will review and approve your account. After approval, you can subscribe and get access to the data.";
 
 function ApprovalNote({ className = "" }: { className?: string }) {
   return (
     <p
-      className={`rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 ${className}`}
+      className={`rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-500 ${className}`}
     >
       {APPROVAL_NOTE}
     </p>
@@ -37,9 +38,10 @@ function ApprovalNote({ className = "" }: { className?: string }) {
 export default function PricingClient({ canSubscribe = true }: { canSubscribe?: boolean }) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
-  // Signed-in-but-unapproved users can't subscribe. The server enforces this
-  // too (/api/paypal/create-subscription returns 403); this just keeps the UI
-  // honest so nobody starts a checkout that will fail.
+  // Only admin-approved users can subscribe. Everyone else — visitors with no
+  // session and signed-in-but-unapproved users alike — gets the approval note
+  // in place of every payment button, with no redirect. The server enforces
+  // the same rule (/api/paypal/create-subscription returns 403).
   const subscribingBlocked = !canSubscribe;
 
   const [modalOpen, setModalOpen] = useState(false);
