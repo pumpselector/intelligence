@@ -18,6 +18,7 @@ export default function ContactForm() {
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [nickname, setNickname] = useState(""); // honeypot — stays empty for humans
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<Status>(null);
 
@@ -37,7 +38,7 @@ export default function ContactForm() {
     const res = await fetch("/api/contact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim(), subject, message }),
+      body: JSON.stringify({ email: email.trim(), subject, message, nickname }),
     });
 
     setPending(false);
@@ -56,6 +57,19 @@ export default function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+      {/* Honeypot: off-screen, not tabbable, ignored by autofill. A bot that
+          fills it gets a silent success from /api/contact and no email is sent. */}
+      <input
+        type="text"
+        name="nickname"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={nickname}
+        onChange={(e) => setNickname(e.target.value)}
+        className="absolute -left-[9999px] h-0 w-0 opacity-0"
+      />
+
       <div>
         <label
           htmlFor="contact-email"

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { escapeHtml } from "@/lib/html";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,17 +16,37 @@ function bareAddress(value: string | undefined): string | null {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Unauthenticated endpoint — cap submissions per IP so it can't be used to
+// flood the inbox / burn the Resend quota. In-memory only (see lib/rate-limit).
+const RATE_LIMIT = 3;
+const RATE_WINDOW_MS = 15 * 60 * 1000;
+
 export async function POST(request: Request) {
+  const ip = clientIp(request.headers);
+  const limit = rateLimit(`contact:${ip}`, RATE_LIMIT, RATE_WINDOW_MS);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many messages from this network. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let body: { subject?: unknown; message?: unknown; email?: unknown };
+  let body: { subject?: unknown; message?: unknown; email?: unknown; nickname?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  // Honeypot: `nickname` is a hidden field no human ever fills. A bot that fills
+  // it gets a 200 with nothing sent, so it doesn't learn to retry.
+  if (typeof body.nickname === "string" && body.nickname.trim() !== "") {
+    return NextResponse.json({ ok: true });
   }
 
   const subject = typeof body.subject === "string" ? body.subject.trim() : "";
@@ -53,9 +75,6 @@ export async function POST(request: Request) {
   const from = process.env.RESEND_FROM || "PumpRadar24 <dealers@pumpradar24.com>";
   const to = bareAddress(process.env.CONTACT_TO) || bareAddress(from) || "dealers@pumpradar24.com";
 
-  const escaped = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
   const resendResponse = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -68,10 +87,10 @@ export async function POST(request: Request) {
       reply_to: senderEmail,
       subject: `[Contact] ${subject}`,
       html: `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.6;color:#16243D">
-  <p><strong>From:</strong> ${escaped(senderEmail)}${user ? "" : " (not signed in)"}</p>
-  <p><strong>Subject:</strong> ${escaped(subject)}</p>
+  <p><strong>From:</strong> ${escapeHtml(senderEmail)}${user ? "" : " (not signed in)"}</p>
+  <p><strong>Subject:</strong> ${escapeHtml(subject)}</p>
   <hr style="border:none;border-top:1px solid #DCE6ED" />
-  <p style="white-space:pre-wrap">${escaped(message)}</p>
+  <p style="white-space:pre-wrap">${escapeHtml(message)}</p>
 </div>`,
       text: `From: ${senderEmail}${user ? "" : " (not signed in)"}\nSubject: ${subject}\n\n${message}`,
     }),

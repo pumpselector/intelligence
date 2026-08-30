@@ -11,9 +11,10 @@ const PROTECTED_PREFIXES = ["/admin"];
 
 export async function proxy(request: NextRequest) {
   // Forward the caller's headers to the app, minus any inbound USER_HEADER:
-  // only this proxy may set it, and only from a token it just validated. This
-  // strip runs on every request (see matcher), so the header can never be
-  // spoofed from the outside regardless of which route reads it.
+  // only this proxy may set it, and only from a token it just validated. The
+  // matcher runs this on every request that can reach app code (everything bar
+  // Next's own build assets), so the header can never be spoofed from outside
+  // regardless of which route reads it.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete(USER_HEADER);
 
@@ -89,10 +90,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next internals and static asset files, so the
-  // USER_HEADER strip is universal. The function itself early-returns for any
-  // path outside SESSION_PREFIXES, so this is not a per-request auth cost.
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
-  ],
+  // Run on every path that can reach app code so the inbound USER_HEADER strip
+  // is universal. Only Next's own build assets are excluded (`_next/static`,
+  // `_next/image`, `favicon.ico`) — those are served before app code and never
+  // read the header. Static files under /public (`*.svg`, `*.png`, …) are NOT
+  // excluded any more: the strip must cover them too. The function early-returns
+  // for any path outside SESSION_PREFIXES, so this is not a per-request auth cost.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

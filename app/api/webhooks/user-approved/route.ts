@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { escapeHtml } from "@/lib/html";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
   const from = process.env.RESEND_FROM || "PumpRadar24 <noreply@pumpradar24.com>";
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://pumpradar24.com").replace(/\/$/, "");
   const loginUrl = `${siteUrl}/login`;
+  const safeLoginUrl = escapeHtml(loginUrl);
 
   const resendResponse = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -80,8 +82,8 @@ export async function POST(request: Request) {
       subject: "Your PumpRadar24 account is approved",
       html: `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.6;color:#16243D">
   <p>Your account has been approved! You can now subscribe and access full data.</p>
-  <p><a href="${loginUrl}" style="display:inline-block;background:#0B1830;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px">Sign in to PumpRadar24</a></p>
-  <p style="color:#53657A;font-size:13px">${loginUrl}</p>
+  <p><a href="${safeLoginUrl}" style="display:inline-block;background:#0B1830;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px">Sign in to PumpRadar24</a></p>
+  <p style="color:#53657A;font-size:13px">${safeLoginUrl}</p>
 </div>`,
       text: `Your account has been approved! You can now subscribe and access full data.\n\nSign in: ${loginUrl}`,
     }),

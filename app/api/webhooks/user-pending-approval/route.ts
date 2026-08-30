@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { escapeHtml } from "@/lib/html";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,8 +101,8 @@ export async function POST(request: Request) {
       subject: `New user pending approval: ${email}`,
       html: `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.6;color:#16243D">
   <p>A new user confirmed their email and is waiting for approval.</p>
-  <p><strong>Email:</strong> ${email}<br/>
-  <strong>Registered:</strong> ${registeredAt}</p>
+  <p><strong>Email:</strong> ${escapeHtml(email)}<br/>
+  <strong>Registered:</strong> ${escapeHtml(registeredAt)}</p>
   <p style="color:#53657A;font-size:13px">Approve them by setting <code>approved = true</code> on their row in the Supabase <code>profiles</code> table.</p>
 </div>`,
       text: `A new user confirmed their email and is waiting for approval.\n\nEmail: ${email}\nRegistered: ${registeredAt}\n\nApprove them by setting approved = true on their row in the Supabase profiles table.`,

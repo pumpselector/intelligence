@@ -10,6 +10,7 @@ const MESSAGE_MAX = 1000;
 export default function ContactSection() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [nickname, setNickname] = useState(""); // honeypot — stays empty for humans
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<Status>(null);
 
@@ -28,7 +29,7 @@ export default function ContactSection() {
     const res = await fetch("/api/contact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject, message }),
+      body: JSON.stringify({ subject, message, nickname }),
     });
 
     setPending(false);
@@ -49,6 +50,18 @@ export default function ContactSection() {
       <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Contact us</h2>
 
       <form onSubmit={handleSubmit} className="mt-4 flex max-w-lg flex-col gap-3">
+        {/* Honeypot — see ContactForm; hidden field a bot fills and a human never does. */}
+        <input
+          type="text"
+          name="nickname"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          className="absolute -left-[9999px] h-0 w-0 opacity-0"
+        />
+
         <div>
           <label
             htmlFor="contact-subject"

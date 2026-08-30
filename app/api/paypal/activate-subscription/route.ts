@@ -57,7 +57,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (subscription.custom_id && subscription.custom_id !== user.id) {
+  // The subscription must belong to the caller. create-subscription always sets
+  // custom_id to the user id, so an absent custom_id means it wasn't created
+  // through our flow — reject rather than fall through (was: only checked when
+  // custom_id was present).
+  if (subscription.custom_id !== user.id) {
     return NextResponse.json({ error: "subscription_user_mismatch" }, { status: 403 });
   }
 
@@ -69,7 +73,13 @@ export async function POST(request: Request) {
     .from("subscription_requests")
     .select("id, user_id")
     .eq("paypal_subscription_id", subscriptionId)
-    .maybeSingle();
+    .maybeSingle<{ id: string; user_id: string }>();
+
+  // If we have a local record for this subscription it must be the caller's too
+  // (since migration 0022 these rows are only written server-side).
+  if (reqRow && reqRow.user_id !== user.id) {
+    return NextResponse.json({ error: "subscription_user_mismatch" }, { status: 403 });
+  }
 
   if (reqRow) {
     await admin
