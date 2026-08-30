@@ -86,7 +86,7 @@ export default function TermsPage() {
         The underlying data is compiled from publicly available sources related to pump manufacturers
         and distributors. XLT Limited does not independently verify, audit, or guarantee the
         accuracy, completeness, or currency of this data. The platform&rsquo;s compilation,
-        organization, design, and the Blocking service are owned by XLT Limited or its licensors.
+        organization, design, and the Blocking service are owned by XLT Limited.
       </p>
 
       <h2>7. Disclaimer and limitation of liability</h2>
