@@ -318,8 +318,9 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
         )}
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2">
-          {/* Standard */}
-          <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-6">
+          {/* Standard — border-2 (not border) so its content box matches the
+              border-2 Block Competitors card exactly and the CTAs line up. */}
+          <div className="flex flex-col rounded-xl border-2 border-slate-200 bg-white p-6">
             <h2 className="text-lg font-semibold text-slate-900">Standard</h2>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
               {formatEur(BASE_PRICE)}
@@ -329,11 +330,16 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
               Full access to pump producer and pump dealer data.
             </p>
 
-            <div className="mt-6 flex min-h-[52px] flex-col justify-end">
+            <div className="mt-6 flex min-h-[45px] flex-col justify-end">
               {subscribingBlocked ? (
                 <ApprovalNote />
               ) : paypalEnabled ? (
                 <PayPalButtons
+                  // The SDK renders `.paypal-buttons` as an inline-block inside
+                  // this container; `leading-[0]` kills the baseline strut so the
+                  // container is exactly PAYPAL_BUTTON_HEIGHT px and lines up
+                  // with the plain <button> on the Block Competitors card.
+                  className="leading-[0]"
                   fundingSource={FUNDING.PAYPAL}
                   style={{
                     layout: "vertical",
@@ -379,7 +385,7 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
             <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-600">
               Everything in Standard, plus: prevent specific competitors from accessing the platform.
             </p>
-            <div className="mt-6 flex min-h-[52px] flex-col justify-end">
+            <div className="mt-6 flex min-h-[45px] flex-col justify-end">
               {subscribingBlocked ? (
                 <ApprovalNote />
               ) : (
