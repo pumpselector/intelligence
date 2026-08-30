@@ -29,6 +29,13 @@ export default async function CheckEmailPage({
           No email after a few minutes? Check your spam folder, or return to sign in and request a new
           confirmation link.
         </p>
+        <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500">
+          If you already have an account with this email, please sign in instead — or use{" "}
+          <Link href="/forgot-password" className="font-medium text-slate-700 hover:text-slate-900">
+            Forgot password
+          </Link>{" "}
+          if you don&apos;t remember your password.
+        </p>
         <Link
           href="/login"
           className="mt-6 inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"

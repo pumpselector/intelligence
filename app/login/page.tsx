@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { borderClass, INPUT_BASE, isPasswordValid } from "@/lib/password";
@@ -10,7 +11,9 @@ type Mode = "signin" | "signup";
 type Status = { type: "error" | "info"; text: string } | null;
 
 const NOTICES: Record<string, string> = {
-  confirmed: "Email confirmed. You can sign in once an administrator approves your access.",
+  confirmed:
+    "Email confirmed — you can sign in now. An administrator will review your account for full data access.",
+  password_updated: "Password updated. Please sign in with your new password.",
   link_used:
     "That confirmation link was already opened — some email apps preview links automatically. If your email is confirmed, just sign in below. Otherwise request a new confirmation email.",
   link_expired:
@@ -37,6 +40,8 @@ export default function LoginPage() {
     if (NOTICES[noticeKey]) {
       setStatus({ type: "info", text: NOTICES[noticeKey] });
       if (noticeKey === "link_used" || noticeKey === "link_expired") setShowResend(true);
+      // Drop the query string so a refresh doesn't keep re-showing the notice.
+      window.history.replaceState(null, "", window.location.pathname);
     }
 
     supabase.auth.getUser().then(({ data }) => {
@@ -66,7 +71,7 @@ export default function LoginPage() {
     setPending(true);
     setStatus(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setStatus({ type: "error", text: error.message });
@@ -75,23 +80,9 @@ export default function LoginPage() {
       return;
     }
 
-    const user = data.user;
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("approved")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.approved) {
-      await supabase.auth.signOut();
-      setStatus({
-        type: "info",
-        text: "Your account is pending admin approval. You'll be able to sign in once it's approved.",
-      });
-      setPending(false);
-      return;
-    }
-
+    // A confirmed email is all that's needed to sign in. Admin approval only
+    // gates *content* (handled by the proxy / access level + the banner), it is
+    // NOT a login gate — so no approved check here.
     router.push("/intelligence");
     router.refresh();
   }
@@ -207,6 +198,14 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className={`${INPUT_BASE} ${borderClass("neutral")}`}
               />
+              <div className="mt-1 text-right">
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-medium text-slate-500 transition-colors hover:text-slate-700"
+                >
+                  Forgot password?
+                </Link>
+              </div>
             </div>
           )}
 

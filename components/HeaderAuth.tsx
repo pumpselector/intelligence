@@ -42,6 +42,9 @@ export default function HeaderAuth() {
     setMenuOpen(false);
     await supabase.auth.signOut();
     setEmail(null);
+    // Send the user home so the sign-out is unmistakable rather than leaving
+    // them on the same (now downgraded) page.
+    router.push("/");
     router.refresh();
   }
 
