@@ -40,6 +40,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<Status>(() =>
     NOTICES[noticeKey] ? { type: "info", text: NOTICES[noticeKey] } : null
@@ -64,13 +65,17 @@ export default function LoginForm() {
 
   const isSignup = mode === "signup";
   const signupReady =
-    isPasswordValid(password) && confirmPassword.length > 0 && password === confirmPassword;
+    isPasswordValid(password) &&
+    confirmPassword.length > 0 &&
+    password === confirmPassword &&
+    agreedToTerms;
 
   function switchMode(next: Mode) {
     setMode(next);
     setStatus(null);
     setShowResend(false);
     setConfirmPassword("");
+    setAgreedToTerms(false);
   }
 
   async function handleSignIn(e: React.FormEvent) {
@@ -194,15 +199,46 @@ export default function LoginForm() {
           </div>
 
           {isSignup ? (
-            <PasswordFields
-              idPrefix="signup"
-              newLabel="Password"
-              confirmLabel="Confirm password"
-              password={password}
-              confirmPassword={confirmPassword}
-              onPasswordChange={setPassword}
-              onConfirmChange={setConfirmPassword}
-            />
+            <>
+              <PasswordFields
+                idPrefix="signup"
+                newLabel="Password"
+                confirmLabel="Confirm password"
+                password={password}
+                confirmPassword={confirmPassword}
+                onPasswordChange={setPassword}
+                onConfirmChange={setConfirmPassword}
+              />
+              <label className="flex items-start gap-2 text-xs leading-relaxed text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 shrink-0"
+                />
+                <span>
+                  I agree to the{" "}
+                  <Link
+                    href="/legal/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-amber-700 underline hover:text-amber-800"
+                  >
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link
+                    href="/legal/privacy-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-amber-700 underline hover:text-amber-800"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </span>
+              </label>
+            </>
           ) : (
             <div>
               <label htmlFor="password" className="text-xs font-medium uppercase tracking-wide text-slate-500">
