@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   if (!subject || !message) {
     return NextResponse.json({ error: "Subject and message are required." }, { status: 422 });
   }
-  if (subject.length > 150 || message.length > 4000) {
+  if (subject.length > 200 || message.length > 1000) {
     return NextResponse.json({ error: "Message is too long." }, { status: 422 });
   }
 

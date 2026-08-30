@@ -60,7 +60,7 @@ export default function HeaderAuth() {
           Log In
         </Link>
         <Link
-          href="/login"
+          href="/login?mode=signup"
           className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800"
         >
           Sign Up

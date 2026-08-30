@@ -55,9 +55,16 @@ export async function getAccess(): Promise<Access> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("approved, paid, access_until")
+    .select("approved, paid, access_until, deletion_requested")
     .eq("id", user.id)
     .single();
+
+  // Deletion requested -> locked out. Treat exactly like a signed-out visitor
+  // everywhere (protected pages redirect to /login; public pages show the
+  // masked view). Login itself is also blocked in app/login.
+  if (profile?.deletion_requested) {
+    return { level: 0, userId: null, email: null, emailVerified: false };
+  }
 
   const base = {
     userId: user.id,

@@ -305,16 +305,22 @@ export default function IntelligenceDetailPanel({
               Upgrade to export
             </Link>
           ) : (
-            hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                disabled={!hasActiveFilters}
                 onClick={() => exportDealersToExcel(sorted)}
-                className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+                className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.75} />
-                Export
+                Export to Excel
               </button>
-            )
+              {!hasActiveFilters && (
+                <span className="text-xs text-slate-400">
+                  Please filter the data to enable Excel export.
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -324,10 +330,10 @@ export default function IntelligenceDetailPanel({
           <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
             <colgroup>
               <col className="w-[15%]" />
-              <col className="w-[27%]" />
+              <col className="w-[26%]" />
               <col className="w-[17%]" />
-              <col className="w-[31%]" />
-              <col className="w-[88px]" />
+              <col className="w-[30%]" />
+              <col className="w-[112px]" />
             </colgroup>
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr>
@@ -371,7 +377,7 @@ export default function IntelligenceDetailPanel({
                       type="button"
                       onClick={() => setDetailRowId(row.id)}
                       title="Show details"
-                      className="shrink-0 rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium leading-none text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      className="shrink-0 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
                     >
                       Details
                     </button>

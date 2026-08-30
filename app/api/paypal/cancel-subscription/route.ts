@@ -15,15 +15,18 @@ type ActiveSub = {
 /**
  * "Cancel subscription" from Settings.
  *
- * PayPal's /cancel is immediate (status -> CANCELLED, no more billing) and emits
- * no further lifecycle events, so the "keep access until the period end" grace
- * is our own: we keep profiles.paid = true and set profiles.access_until to the
- * current next_payment_date. getAccess() downgrades the user once that date
- * passes — no scheduled job required.
+ * We SUSPEND the PayPal subscription rather than cancelling it: suspend stops
+ * all billing but stays reversible via PayPal's /activate, so the user can
+ * "Reactivate subscription" later (see /api/paypal/reactivate-subscription).
+ * A suspended subscription the user never revives just sits paused forever —
+ * no charges — and an admin can hard-cancel it in PayPal if they want to tidy up.
  *
- * We flip the local state BEFORE calling PayPal so the CANCELLED webhook (which
- * follows within seconds) sees cancel_at_period_end = true and doesn't yank
- * access early.
+ * The "keep access until the period end" grace is our own: profiles.paid stays
+ * true and profiles.access_until is set to the current next_payment_date;
+ * getAccess() downgrades the user once that date passes — no scheduled job.
+ *
+ * Local state is flipped BEFORE calling PayPal so the SUSPENDED webhook that
+ * follows sees cancel_at_period_end = true and treats it as user-initiated.
  */
 export async function POST() {
   const supabase = await createClient();
@@ -67,23 +70,28 @@ export async function POST() {
     .update({ subscription_status: "cancelled", access_until: accessUntil })
     .eq("id", user.id);
 
-  // Payment stops -> the competitor block list goes (the per-company fee ends
-  // now). Data access is what continues until access_until.
-  await admin.from("blocked_companies").delete().eq("user_id", user.id);
+  // The block list stays active for as long as the user's data access does
+  // (until access_until). Never delete the rows — the team keeps them for
+  // reference — just stamp when they stop counting.
+  await admin
+    .from("blocked_companies")
+    .update({ deactivated_at: new Date(`${accessUntil}T00:00:00Z`).toISOString() })
+    .eq("user_id", user.id)
+    .is("deactivated_at", null);
 
-  let paypalCancelled = false;
+  let paypalSuspended = false;
   let detail: string | undefined;
   if (paypalConfigured() && sub.paypal_subscription_id) {
     try {
       await paypalRequest(
-        `/v1/billing/subscriptions/${encodeURIComponent(sub.paypal_subscription_id)}/cancel`,
+        `/v1/billing/subscriptions/${encodeURIComponent(sub.paypal_subscription_id)}/suspend`,
         { method: "POST", body: { reason: "Cancelled from account settings" } }
       );
-      paypalCancelled = true;
+      paypalSuspended = true;
     } catch (err) {
       detail = err instanceof Error ? err.message : String(err);
     }
   }
 
-  return NextResponse.json({ ok: true, accessUntil, paypalCancelled, detail });
+  return NextResponse.json({ ok: true, accessUntil, paypalSuspended, detail });
 }

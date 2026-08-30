@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatEur } from "@/lib/pricing";
 import CancelSubscriptionButton from "@/components/settings/CancelSubscriptionButton";
+import ReactivateSubscriptionButton from "@/components/settings/ReactivateSubscriptionButton";
 
 export type PlanInfo = {
   plan_type: string;
@@ -69,10 +70,16 @@ export default function PlanSection({
           </dl>
 
           {cancelled ? (
-            <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              Your subscription is cancelled. Full access continues until{" "}
-              {plan.next_payment_date ? formatDate(plan.next_payment_date) : "the end of your period"}.
-            </p>
+            <div className="mt-4">
+              <p className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                Your subscription is cancelled. Full access continues until{" "}
+                {plan.next_payment_date
+                  ? formatDate(plan.next_payment_date)
+                  : "the end of your period"}
+                .
+              </p>
+              {plan.cancel_at_period_end && <ReactivateSubscriptionButton />}
+            </div>
           ) : (
             cancellable && (
               <div className="mt-4 border-t border-slate-100 pt-4">

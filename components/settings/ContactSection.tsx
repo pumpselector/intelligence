@@ -4,13 +4,20 @@ import { useState } from "react";
 
 type Status = { type: "error" | "info"; text: string } | null;
 
+const SUBJECT_MAX = 200;
+const MESSAGE_MAX = 1000;
+
 export default function ContactSection() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState<Status>(null);
 
-  const ready = subject.trim().length > 0 && message.trim().length > 0;
+  const ready =
+    subject.trim().length > 0 &&
+    message.trim().length > 0 &&
+    subject.length <= SUBJECT_MAX &&
+    message.length <= MESSAGE_MAX;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,11 +60,14 @@ export default function ContactSection() {
             id="contact-subject"
             type="text"
             required
-            maxLength={150}
+            maxLength={SUBJECT_MAX}
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
           />
+          <p className="mt-1 text-right text-xs text-slate-400">
+            {subject.length}/{SUBJECT_MAX}
+          </p>
         </div>
 
         <div>
@@ -71,11 +81,14 @@ export default function ContactSection() {
             id="contact-message"
             required
             rows={5}
-            maxLength={4000}
+            maxLength={MESSAGE_MAX}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-slate-400"
           />
+          <p className="mt-1 text-right text-xs text-slate-400">
+            {message.length}/{MESSAGE_MAX}
+          </p>
         </div>
 
         {status && (

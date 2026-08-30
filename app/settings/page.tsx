@@ -4,6 +4,7 @@ import { getAccess, hasFullAccess } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import ChangePasswordSection from "@/components/settings/ChangePasswordSection";
 import ContactSection from "@/components/settings/ContactSection";
+import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import PlanSection, { type PlanInfo } from "@/components/settings/PlanSection";
 import BlockedCompaniesSection, {
   type BlockedCompany,
@@ -48,6 +49,7 @@ export default async function SettingsPage() {
       .select(
         "id, company_name, status, effective_from, requested_at, active_until, is_billable_addition"
       )
+      .is("deactivated_at", null)
       .order("requested_at", { ascending: true });
     blocked = (blockedData ?? []) as BlockedCompany[];
     slotCount = plan?.blocked_company_count ?? 0;
@@ -91,6 +93,8 @@ export default async function SettingsPage() {
             </div>
           )}
         </section>
+
+        <DeleteAccountSection />
       </div>
     </main>
   );

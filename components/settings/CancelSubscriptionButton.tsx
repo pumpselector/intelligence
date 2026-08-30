@@ -68,9 +68,9 @@ export default function CancelSubscriptionButton({
   return (
     <div className="rounded-md border border-red-200 bg-red-50 p-3">
       <p className="text-xs text-red-700">
-        Cancel your subscription? You&apos;ll keep full access until{" "}
+        Cancel your subscription? You&apos;ll keep full access (and your blocked-company list) until{" "}
         {nextPaymentDate ? formatDate(nextPaymentDate) : "the end of your current period"}, then your
-        account returns to the free view. Your blocked-company list is removed.
+        account returns to the free view. You can reactivate any time.
       </p>
       {error && <p className="mt-1 text-xs font-medium text-red-700">{error}</p>}
       <div className="mt-2 flex gap-2">

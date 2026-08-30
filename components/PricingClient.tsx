@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { Info } from "lucide-react";
 import { FUNDING, PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -32,6 +33,51 @@ function ApprovalNote({ className = "" }: { className?: string }) {
     >
       {APPROVAL_NOTE}
     </p>
+  );
+}
+
+const BLOCKING_INFO =
+  "With this option, you can prevent as many competitors as you'd like from accessing the system. Every user on PumpRadar24 is approved by an admin — sign-ups from generic addresses like Gmail, Hotmail, or 163.com are not accepted. Simply provide the name of the company you want to restrict, and we'll prevent them from joining.";
+
+/** Small "i" affordance next to the Block Competitors price. Hover or click. */
+function BlockingInfoTooltip() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  return (
+    <div
+      ref={ref}
+      className="relative inline-flex"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="About the Block Competitors plan"
+        aria-expanded={open}
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
+      >
+        <Info className="h-3 w-3" strokeWidth={2} />
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          className="absolute right-0 top-7 z-30 w-[min(18rem,calc(100vw-3rem))] rounded-md border border-slate-200 bg-white p-3 text-left text-xs font-normal leading-relaxed text-slate-600 shadow-lg"
+        >
+          {BLOCKING_INFO}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -197,10 +243,18 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
   }
 
   function handlePaypalError(err: unknown) {
+    createInFlight.current = null;
     setSubmit({
       plan: null,
       error: err instanceof Error ? err.message : "PayPal checkout failed. Please try again.",
     });
+  }
+
+  // The buyer closed the PayPal popup without paying. Reset so the buttons /
+  // "Select" become usable again without a page refresh.
+  function handlePaypalCancel() {
+    createInFlight.current = null;
+    setSubmit({ plan: null, error: null });
   }
 
   function openBlockingModal() {
@@ -277,57 +331,64 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
               Full access to pump producer and pump dealer data.
             </p>
 
-            {subscribingBlocked ? (
-              <ApprovalNote className="mt-6" />
-            ) : paypalEnabled ? (
-              <div className="mt-6">
+            <div className="mt-6 flex min-h-[52px] flex-col justify-end">
+              {subscribingBlocked ? (
+                <ApprovalNote />
+              ) : paypalEnabled ? (
                 <PayPalButtons
                   fundingSource={FUNDING.PAYPAL}
-                  style={{ layout: "vertical", label: "subscribe", shape: "rect" }}
+                  style={{ layout: "vertical", label: "subscribe", shape: "rect", height: 45 }}
                   forceReRender={["standard"]}
                   createSubscription={() => startPaypalSubscription("standard", 0, [])}
                   onApprove={handlePaypalApprove}
                   onError={handlePaypalError}
+                  onCancel={handlePaypalCancel}
                 />
-              </div>
-            ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => submitRequest("standard", BASE_PRICE, [], 0)}
-                className="mt-6 w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
-              >
-                {submit.plan === "standard" ? "Submitting…" : "Select"}
-              </button>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => submitRequest("standard", BASE_PRICE, [], 0)}
+                  className="w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {submit.plan === "standard" ? "Submitting…" : "Select"}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Block Competitors */}
           <div className="flex flex-col rounded-xl border-2 border-amber-300 bg-white p-6">
             <h2 className="text-lg font-semibold text-slate-900">Block Competitors</h2>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-              {formatEur(BASE_PRICE)}
-              <span className="text-sm font-normal text-slate-400">
-                {" "}
-                + {formatEur(PER_BLOCK_PRICE)} per blocked company / month
+            <div className="mt-2 flex items-start gap-1.5">
+              <p className="flex-1 text-2xl font-semibold tracking-tight text-slate-900">
+                {formatEur(BASE_PRICE)}
+                <span className="text-sm font-normal text-slate-400">
+                  {" "}
+                  + {formatEur(PER_BLOCK_PRICE)} per blocked company / month
+                </span>
+              </p>
+              <span className="mt-1 shrink-0">
+                <BlockingInfoTooltip />
               </span>
-            </p>
+            </div>
             <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-600">
-              Everything in Standard, plus: prevent specific competitor domains from accessing the
-              platform.
+              Everything in Standard, plus: prevent specific competitors from accessing the platform.
             </p>
-            {subscribingBlocked ? (
-              <ApprovalNote className="mt-6" />
-            ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={openBlockingModal}
-                className="mt-6 w-full rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
-              >
-                Select
-              </button>
-            )}
+            <div className="mt-6 flex min-h-[52px] flex-col justify-end">
+              {subscribingBlocked ? (
+                <ApprovalNote />
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={openBlockingModal}
+                  className="w-full rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                >
+                  Select
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -449,7 +510,7 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
                   {paypalEnabled ? (
                     <PayPalButtons
                       fundingSource={FUNDING.PAYPAL}
-                      style={{ layout: "vertical", label: "subscribe", shape: "rect" }}
+                      style={{ layout: "vertical", label: "subscribe", shape: "rect", height: 45 }}
                       forceReRender={[count]}
                       createSubscription={() =>
                         startPaypalSubscription(
@@ -460,6 +521,7 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
                       }
                       onApprove={handlePaypalApprove}
                       onError={handlePaypalError}
+                      onCancel={handlePaypalCancel}
                     />
                   ) : (
                     <button

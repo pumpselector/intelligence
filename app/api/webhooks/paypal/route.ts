@@ -26,6 +26,7 @@ type SubscriptionRequestRow = {
  * PayPal webhook target. Configure a webhook in the PayPal dashboard pointing at
  * `<site>/api/webhooks/paypal`, subscribed to:
  *   BILLING.SUBSCRIPTION.ACTIVATED
+ *   BILLING.SUBSCRIPTION.SUSPENDED
  *   BILLING.SUBSCRIPTION.CANCELLED
  *   BILLING.SUBSCRIPTION.EXPIRED
  *   BILLING.SUBSCRIPTION.PAYMENT.FAILED
@@ -76,23 +77,54 @@ export async function POST(request: Request) {
 
   switch (type) {
     case "BILLING.SUBSCRIPTION.ACTIVATED": {
+      // Fires on first activation AND on reactivation of a suspended
+      // subscription (Settings -> "Reactivate subscription"). The extra
+      // resets below are no-ops on a first activation and undo a cancel on a
+      // reactivation, so this stays correct either way.
       const nextPaymentDate = toDateOnly(resource.billing_info?.next_billing_time);
       await admin
         .from("subscription_requests")
         .update({
           status: "active",
+          cancel_at_period_end: false,
           ...(nextPaymentDate ? { next_payment_date: nextPaymentDate } : {}),
         })
         .eq("id", reqRow.id);
       await admin
         .from("profiles")
-        .update({ paid: true, subscription_status: "active" })
+        .update({ paid: true, subscription_status: "active", access_until: null })
         .eq("id", reqRow.user_id);
       await admin
         .from("blocked_companies")
         .update({ status: "active" })
         .eq("user_id", reqRow.user_id)
         .eq("status", "pending_next_cycle");
+      // Restore any block-list rows a prior cancel deactivated.
+      await admin
+        .from("blocked_companies")
+        .update({ deactivated_at: null })
+        .eq("user_id", reqRow.user_id)
+        .not("deactivated_at", "is", null);
+      break;
+    }
+
+    case "BILLING.SUBSCRIPTION.SUSPENDED": {
+      if (reqRow.cancel_at_period_end) {
+        // Our own suspend from /api/paypal/cancel-subscription — the local
+        // "cancelled, access until period end" state is already set. Nothing
+        // to do.
+        break;
+      }
+      // PayPal-side suspension (e.g. repeated payment failures). Treat like a
+      // billing problem; access isn't torn down until CANCELLED/EXPIRED.
+      await admin
+        .from("subscription_requests")
+        .update({ status: "past_due" })
+        .eq("id", reqRow.id);
+      await admin
+        .from("profiles")
+        .update({ subscription_status: "past_due" })
+        .eq("id", reqRow.user_id);
       break;
     }
 
@@ -139,12 +171,17 @@ export async function POST(request: Request) {
           .update({ subscription_status: "cancelled" })
           .eq("id", reqRow.user_id);
       } else {
-        // Involuntary / PayPal-side termination: full teardown.
+        // Involuntary / PayPal-side termination: access is gone now. Deactivate
+        // the block list immediately (but keep the rows for the team's records).
         await admin
           .from("profiles")
           .update({ paid: false, subscription_status: "cancelled", access_until: null })
           .eq("id", reqRow.user_id);
-        await admin.from("blocked_companies").delete().eq("user_id", reqRow.user_id);
+        await admin
+          .from("blocked_companies")
+          .update({ deactivated_at: new Date().toISOString() })
+          .eq("user_id", reqRow.user_id)
+          .is("deactivated_at", null);
       }
       break;
     }

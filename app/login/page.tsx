@@ -14,6 +14,7 @@ const NOTICES: Record<string, string> = {
   confirmed:
     "Email confirmed — you can sign in now. An administrator will review your account for full data access.",
   password_updated: "Password updated. Please sign in with your new password.",
+  account_deactivated: "Your account has been deactivated.",
   link_used:
     "That confirmation link was already opened — some email apps preview links automatically. If your email is confirmed, just sign in below. Otherwise request a new confirmation email.",
   link_expired:
@@ -24,7 +25,12 @@ export default function LoginPage() {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
 
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(() =>
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("mode") === "signup"
+      ? "signup"
+      : "signin"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -40,7 +46,10 @@ export default function LoginPage() {
     if (NOTICES[noticeKey]) {
       setStatus({ type: "info", text: NOTICES[noticeKey] });
       if (noticeKey === "link_used" || noticeKey === "link_expired") setShowResend(true);
-      // Drop the query string so a refresh doesn't keep re-showing the notice.
+    }
+    if (params.get("mode") || NOTICES[noticeKey]) {
+      // `mode` is read in the useState initializer; drop the query string so a
+      // refresh doesn't keep re-applying it (or re-showing the notice).
       window.history.replaceState(null, "", window.location.pathname);
     }
 
@@ -71,11 +80,24 @@ export default function LoginPage() {
     setPending(true);
     setStatus(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setStatus({ type: "error", text: error.message });
       if (/confirm/i.test(error.message)) setShowResend(true);
+      setPending(false);
+      return;
+    }
+
+    // A requested-deletion account is locked out entirely.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("deletion_requested")
+      .eq("id", data.user.id)
+      .single();
+    if (profile?.deletion_requested) {
+      await supabase.auth.signOut();
+      setStatus({ type: "error", text: NOTICES.account_deactivated });
       setPending(false);
       return;
     }
