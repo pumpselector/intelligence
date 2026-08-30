@@ -57,14 +57,23 @@ export default function TermsPage() {
       <h2>4. Blocking plan</h2>
       <p>
         The Blocking plan lets you request that named competitor companies are not admitted to the
-        platform. This is managed manually by our team on a best-effort basis. We do not guarantee a
-        specific service level, response time or outcome for blocking requests.
+        platform. Because all members must register with a verified business email, we can reliably
+        screen and reject sign-up attempts from the companies you&rsquo;ve listed. However, we cannot
+        guarantee against access gained through an unrelated third party (for example, another pump
+        company&rsquo;s account) that we have no reasonable way to identify as connected to a blocked
+        company. This service is managed manually by our team on a best-effort basis, without a
+        specific service level or response time guarantee.
       </p>
 
       <h2>5. Acceptable use</h2>
       <ul>
         <li>Do not share, redistribute, publish or resell the data or any part of the platform.</li>
-        <li>Do not use the data for any commercial resale or data-brokering purpose.</li>
+        <li>
+          Do not use the data (in bulk or in compiled form) for commercial resale or data-brokering
+          purposes &mdash; that is, republishing, reselling, or redistributing our data compilations
+          to third parties as a competing product or dataset. This does not restrict your ordinary
+          business use of the platform, such as identifying sales leads or market opportunities.
+        </li>
         <li>
           Do not scrape, crawl or use automated means to extract data, and do not attempt to
           circumvent access controls or rate limits.
@@ -74,9 +83,10 @@ export default function TermsPage() {
 
       <h2>6. Intellectual property</h2>
       <p>
-        The platform, its content, data compilations and design are owned by XLT Limited or its
-        licensors. Your subscription grants you a limited, non-transferable right to access and use
-        the platform for your own internal business purposes only.
+        The underlying data is compiled from publicly available sources related to pump manufacturers
+        and distributors. XLT Limited does not independently verify, audit, or guarantee the
+        accuracy, completeness, or currency of this data. The platform&rsquo;s compilation,
+        organization, design, and the Blocking service are owned by XLT Limited or its licensors.
       </p>
 
       <h2>7. Disclaimer and limitation of liability</h2>
