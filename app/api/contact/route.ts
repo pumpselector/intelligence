@@ -12,17 +12,15 @@ function bareAddress(value: string | undefined): string | null {
   return addr.includes("@") ? addr : null;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user?.email) {
-    return NextResponse.json({ error: "You must be signed in." }, { status: 401 });
-  }
-
-  let body: { subject?: unknown; message?: unknown };
+  let body: { subject?: unknown; message?: unknown; email?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -31,6 +29,14 @@ export async function POST(request: Request) {
 
   const subject = typeof body.subject === "string" ? body.subject.trim() : "";
   const message = typeof body.message === "string" ? body.message.trim() : "";
+
+  // Signed-in users are identified by their session; visitors supply their own
+  // address in the public /contact form.
+  const providedEmail = typeof body.email === "string" ? body.email.trim() : "";
+  const senderEmail = user?.email ?? providedEmail;
+  if (!EMAIL_RE.test(senderEmail)) {
+    return NextResponse.json({ error: "A valid email address is required." }, { status: 422 });
+  }
 
   if (!subject || !message) {
     return NextResponse.json({ error: "Subject and message are required." }, { status: 422 });
@@ -59,15 +65,15 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       from,
       to,
-      reply_to: user.email,
+      reply_to: senderEmail,
       subject: `[Contact] ${subject}`,
       html: `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.6;color:#16243D">
-  <p><strong>From:</strong> ${escaped(user.email)}</p>
+  <p><strong>From:</strong> ${escaped(senderEmail)}${user ? "" : " (not signed in)"}</p>
   <p><strong>Subject:</strong> ${escaped(subject)}</p>
   <hr style="border:none;border-top:1px solid #DCE6ED" />
   <p style="white-space:pre-wrap">${escaped(message)}</p>
 </div>`,
-      text: `From: ${user.email}\nSubject: ${subject}\n\n${message}`,
+      text: `From: ${senderEmail}${user ? "" : " (not signed in)"}\nSubject: ${subject}\n\n${message}`,
     }),
   });
 
