@@ -156,12 +156,10 @@ export default function BlockedCompaniesSection({
   userId,
   slotCount,
   initial,
-  isFirstSubscription,
 }: {
   userId: string;
   slotCount: number;
   initial: BlockedCompany[];
-  isFirstSubscription: boolean;
 }) {
   const [supabase] = useState(() => createClient());
   const [rows, setRows] = useState<BlockedCompany[]>(initial);
@@ -264,15 +262,15 @@ export default function BlockedCompaniesSection({
     [rows]
   );
 
-  // Filling an empty slot (an existing blank "active" row, or one of the N
-  // slots that has no row at all yet) takes effect immediately only for a
-  // user's very first fill ever -- otherwise it waits for the next cycle,
-  // same rule as the /pricing first-subscription check.
+  // Filling an empty slot -- an existing blank "active" row, or one of the N
+  // paid slots that has no row yet -- is putting a name on a slot the user has
+  // ALREADY PAID FOR. It takes effect immediately (status 'active') and never
+  // triggers a PayPal revision: nothing about the bill changed. Only "+ Add
+  // another company" adds a billable slot and goes through pending + revise.
   async function fillExistingSlot(name: string, existingId: string): Promise<string | null> {
-    const status = isFirstSubscription ? "active" : "pending_next_cycle";
     const { data, error: updateError } = await supabase
       .from("blocked_companies")
-      .update({ company_name: name, status })
+      .update({ company_name: name, status: "active" })
       .eq("id", existingId)
       .select(ROW_COLUMNS)
       .single();
@@ -282,10 +280,9 @@ export default function BlockedCompaniesSection({
   }
 
   async function fillVirtualSlot(name: string, virtualKey: string): Promise<string | null> {
-    const status = isFirstSubscription ? "active" : "pending_next_cycle";
     const { data, error: insertError } = await supabase
       .from("blocked_companies")
-      .insert({ user_id: userId, company_name: name, status })
+      .insert({ user_id: userId, company_name: name, status: "active" })
       .select(ROW_COLUMNS)
       .single();
     if (insertError || !data) return insertError?.message ?? "Could not save.";
@@ -428,9 +425,7 @@ export default function BlockedCompaniesSection({
               <InlineSaveInput
                 placeholder="Not set yet"
                 onSave={(name) => fillExistingSlot(name, row.id)}
-                savedLabel={(name) =>
-                  isFirstSubscription ? name : `${name} — starts next billing cycle`
-                }
+                savedLabel={(name) => name}
               />
             </li>
           ))}
@@ -439,9 +434,7 @@ export default function BlockedCompaniesSection({
               <InlineSaveInput
                 placeholder="Not set yet"
                 onSave={(name) => fillVirtualSlot(name, key)}
-                savedLabel={(name) =>
-                  isFirstSubscription ? name : `${name} — starts next billing cycle`
-                }
+                savedLabel={(name) => name}
               />
             </li>
           ))}

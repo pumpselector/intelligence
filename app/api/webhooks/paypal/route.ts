@@ -24,6 +24,7 @@ type SubscriptionRequestRow = {
   cancel_at_period_end: boolean | null;
   pending_revised_block_count: number | null;
   pending_revised_price: number | null;
+  pending_revised_plan_type: string | null;
   pending_revision_approval_url: string | null;
 };
 
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
   const { data: reqRow } = await admin
     .from("subscription_requests")
     .select(
-      "id, user_id, monthly_price, cancel_at_period_end, pending_revised_block_count, pending_revised_price, pending_revision_approval_url"
+      "id, user_id, monthly_price, cancel_at_period_end, pending_revised_block_count, pending_revised_price, pending_revised_plan_type, pending_revision_approval_url"
     )
     .eq("paypal_subscription_id", subscriptionId)
     .maybeSingle<SubscriptionRequestRow>();
@@ -111,10 +112,15 @@ export async function POST(request: Request) {
       await admin
         .from("subscription_requests")
         .update({
+          // Set only on a Standard -> Blocking switch (migration 0018).
+          ...(reqRow.pending_revised_plan_type
+            ? { plan_type: reqRow.pending_revised_plan_type }
+            : {}),
           blocked_company_count: reqRow.pending_revised_block_count,
           monthly_price: reqRow.pending_revised_price,
           pending_revised_block_count: null,
           pending_revised_price: null,
+          pending_revised_plan_type: null,
           pending_revision_approval_url: null,
         })
         .eq("id", reqRow.id);
@@ -153,10 +159,14 @@ export async function POST(request: Request) {
       const revisionApplied =
         chargedNewAmount || noApprovalWasNeeded
           ? {
+              ...(reqRow.pending_revised_plan_type
+                ? { plan_type: reqRow.pending_revised_plan_type }
+                : {}),
               blocked_company_count: reqRow.pending_revised_block_count,
               monthly_price: reqRow.pending_revised_price,
               pending_revised_block_count: null,
               pending_revised_price: null,
+              pending_revised_plan_type: null,
               pending_revision_approval_url: null,
             }
           : {};

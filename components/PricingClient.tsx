@@ -22,9 +22,25 @@ type ModalStep = 1 | 2;
 // switch on PayPal checkout with no code change.
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 
-export default function PricingClient() {
+const APPROVAL_NOTE = "Your account must be approved by an admin before you can subscribe.";
+
+function ApprovalNote({ className = "" }: { className?: string }) {
+  return (
+    <p
+      className={`rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 ${className}`}
+    >
+      {APPROVAL_NOTE}
+    </p>
+  );
+}
+
+export default function PricingClient({ canSubscribe = true }: { canSubscribe?: boolean }) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
+  // Signed-in-but-unapproved users can't subscribe. The server enforces this
+  // too (/api/paypal/create-subscription returns 403); this just keeps the UI
+  // honest so nobody starts a checkout that will fail.
+  const subscribingBlocked = !canSubscribe;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState<ModalStep>(1);
@@ -109,7 +125,25 @@ export default function PricingClient() {
   }
 
   // ---- PayPal flow: create the subscription server-side, then approve ----
-  async function startPaypalSubscription(
+  // A single in-flight create call, shared between concurrent invocations of
+  // the PayPal button's createSubscription callback (double-click, re-render).
+  // Without this each call spins up its own PayPal subscription server-side.
+  const createInFlight = useRef<Promise<string> | null>(null);
+
+  function startPaypalSubscription(
+    plan: PlanType,
+    blockCount: number,
+    blocked: string[]
+  ): Promise<string> {
+    if (createInFlight.current) return createInFlight.current;
+    const promise = createPaypalSubscription(plan, blockCount, blocked).finally(() => {
+      createInFlight.current = null;
+    });
+    createInFlight.current = promise;
+    return promise;
+  }
+
+  async function createPaypalSubscription(
     plan: PlanType,
     blockCount: number,
     blocked: string[]
@@ -134,7 +168,9 @@ export default function PricingClient() {
       const message =
         data.error === "unauthorized"
           ? "Please sign in to continue."
-          : data.detail || data.error || "Could not start checkout.";
+          : data.error === "not_approved"
+            ? APPROVAL_NOTE
+            : data.detail || data.error || "Could not start checkout.";
       setSubmit({ plan: null, error: message });
       throw new Error(message);
     }
@@ -166,6 +202,7 @@ export default function PricingClient() {
   }
 
   function openBlockingModal() {
+    if (subscribingBlocked) return;
     setSubmit({ plan: null, error: null });
     setStep(1);
     setCount(0);
@@ -238,7 +275,9 @@ export default function PricingClient() {
               Full access to pump producer and pump dealer data.
             </p>
 
-            {paypalEnabled ? (
+            {subscribingBlocked ? (
+              <ApprovalNote className="mt-6" />
+            ) : paypalEnabled ? (
               <div className="mt-6">
                 <PayPalButtons
                   fundingSource={FUNDING.PAYPAL}
@@ -275,14 +314,18 @@ export default function PricingClient() {
               Everything in Standard, plus: prevent specific competitor domains from accessing the
               platform.
             </p>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={openBlockingModal}
-              className="mt-6 w-full rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
-            >
-              Select
-            </button>
+            {subscribingBlocked ? (
+              <ApprovalNote className="mt-6" />
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={openBlockingModal}
+                className="mt-6 w-full rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+              >
+                Select
+              </button>
+            )}
           </div>
         </div>
       </div>

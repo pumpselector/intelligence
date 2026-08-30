@@ -13,6 +13,19 @@ type Body = {
   companies?: unknown;
 };
 
+/** Drop repeated company names (case-insensitive), keeping first occurrence. */
+function dedupeNames(names: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const name of names) {
+    const key = name.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
 /**
  * Creates a PayPal subscription for the signed-in user and records a
  * `pending_payment` row in subscription_requests. The browser SDK's
@@ -39,6 +52,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // Hard gate: an email-confirmed but not-yet-admin-approved user must not be
+  // able to start a subscription. The /pricing UI disables the buttons for
+  // these users, but that's bypassable — this is the real check. No PayPal
+  // request is made when it fails.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("approved")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.approved) {
+    return NextResponse.json({ error: "not_approved" }, { status: 403 });
+  }
+
   let body: Body;
   try {
     body = (await request.json()) as Body;
@@ -50,10 +76,10 @@ export async function POST(request: Request) {
   const blockCount =
     plan === "blocking" ? Math.max(1, Math.floor(Number(body.blockCount) || 0)) : 0;
   const companies = Array.isArray(body.companies)
-    ? body.companies
-        .map((c) => String(c).trim())
-        .filter((c) => c.length > 0)
-        .slice(0, blockCount)
+    ? dedupeNames(body.companies.map((c) => String(c).trim()).filter((c) => c.length > 0)).slice(
+        0,
+        blockCount
+      )
     : [];
 
   const planId = PAYPAL_PLAN_IDS[plan];
@@ -103,6 +129,30 @@ export async function POST(request: Request) {
     };
   }
 
+  const admin = createAdminClient();
+
+  // Clear any checkout this user abandoned earlier — a closed PayPal popup, a
+  // double-clicked button, a retried request. Each of those created its own
+  // pending row plus its own blocked_companies rows; leaving them behind is
+  // what surfaced as duplicate company names once one attempt got paid.
+  // ON DELETE CASCADE (migration 0017) removes the linked blocked_companies.
+  await admin
+    .from("subscription_requests")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("status", "pending_payment")
+    .not("paypal_subscription_id", "is", null);
+
+  // First-ever active subscription for this user? Then blocked companies take
+  // effect immediately rather than waiting for a billing cycle (matches the
+  // rule the fallback flow already uses).
+  const { count: activeCount } = await admin
+    .from("subscription_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("status", "active");
+  const isFirstSubscription = (activeCount ?? 0) === 0;
+
   let subscription: { id: string; status: string };
   try {
     subscription = await paypalRequest<{ id: string; status: string }>(
@@ -116,28 +166,27 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = createAdminClient();
-
-  // First-ever active subscription for this user? Then blocked companies take
-  // effect immediately rather than waiting for a billing cycle (matches the
-  // rule the fallback flow already uses).
-  const { count: activeCount } = await admin
+  const { data: reqRow, error: reqError } = await admin
     .from("subscription_requests")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "active");
-  const isFirstSubscription = (activeCount ?? 0) === 0;
-
-  const { error: reqError } = await admin.from("subscription_requests").insert({
-    user_id: user.id,
-    plan_type: plan,
-    monthly_price: monthlyPrice,
-    blocked_company_count: blockCount,
-    status: "pending_payment",
-    paypal_subscription_id: subscription.id,
-  });
-  if (reqError) {
-    return NextResponse.json({ error: "db_insert_failed", detail: reqError.message }, { status: 500 });
+    .insert({
+      user_id: user.id,
+      plan_type: plan,
+      monthly_price: monthlyPrice,
+      blocked_company_count: blockCount,
+      status: "pending_payment",
+      paypal_subscription_id: subscription.id,
+    })
+    .select("id")
+    .single();
+  if (reqError || !reqRow) {
+    // A racing create call for the same user won the partial unique index
+    // (migration 0017). The PayPal subscription we just made goes unapproved
+    // and PayPal expires it on its own.
+    const raced = reqError?.code === "23505";
+    return NextResponse.json(
+      { error: raced ? "checkout_already_in_progress" : "db_insert_failed", detail: reqError?.message },
+      { status: raced ? 409 : 500 }
+    );
   }
 
   if (companies.length > 0) {
@@ -146,6 +195,7 @@ export async function POST(request: Request) {
         user_id: user.id,
         company_name,
         status: isFirstSubscription ? "active" : "pending_next_cycle",
+        subscription_request_id: reqRow.id,
       }))
     );
   }

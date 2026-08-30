@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { paypalConfigured, paypalRequest } from "@/lib/paypal";
+import { PAYPAL_PLAN_IDS, paypalConfigured, paypalRequest } from "@/lib/paypal";
 import { blockingPrice } from "@/lib/pricing";
 
 export const runtime = "nodejs";
@@ -82,21 +82,35 @@ export async function POST() {
       .eq("is_billable_addition", false),
   ]);
 
+  // A Standard subscriber leaving the fixed-price Standard plan for Blocking is
+  // a PayPal PLAN CHANGE (a different plan_id), not just an amount revise — but
+  // only once they've actually queued a billable block. Until then Standard is
+  // unchanged and there's nothing to sync.
+  const isPlanSwitch = sub.plan_type !== "blocking";
   const baseCount = sub.plan_type === "blocking" ? sub.blocked_company_count : 0;
   const basePrice = Number(sub.monthly_price);
-  const nextCount = Math.max(1, baseCount + (additions ?? 0) - (removals ?? 0));
+  const rawNextCount = baseCount + (additions ?? 0) - (removals ?? 0);
+
+  if (isPlanSwitch && rawNextCount < 1) {
+    return NextResponse.json({ ok: true, unchanged: true, blockCount: 0, price: basePrice });
+  }
+
+  const nextCount = Math.max(1, rawNextCount);
   const nextPrice = blockingPrice(nextCount);
 
   // What PayPal's amount is currently queued to become: the last revision, or
   // the live plan amount if none is queued.
   const currentTargetPrice =
     sub.pending_revised_price != null ? Number(sub.pending_revised_price) : basePrice;
-  const backToBaseline = nextCount === sub.blocked_company_count && nextPrice === basePrice;
+  // Only meaningful once already on Blocking — a revert to the paid baseline.
+  const backToBaseline =
+    !isPlanSwitch && nextCount === sub.blocked_company_count && nextPrice === basePrice;
   const hasOutstandingApproval = Boolean(sub.pending_revision_approval_url);
 
-  // Nothing to do: the computed target already matches what's queued and there's
-  // no half-finished approval to chase.
-  if (nextPrice === currentTargetPrice && !hasOutstandingApproval) {
+  // Nothing to do: the computed target already matches what's queued and
+  // there's no half-finished approval to chase. A pending plan switch always
+  // needs PayPal (the DB still says Standard), so it never short-circuits here.
+  if (!isPlanSwitch && nextPrice === currentTargetPrice && !hasOutstandingApproval) {
     return NextResponse.json({ ok: true, unchanged: true, blockCount: nextCount, price: nextPrice });
   }
 
@@ -104,19 +118,36 @@ export async function POST() {
     ? {
         pending_revised_block_count: null,
         pending_revised_price: null,
+        pending_revised_plan_type: null,
         pending_revision_approval_url: null,
       }
-    : { pending_revised_block_count: nextCount, pending_revised_price: nextPrice };
+    : {
+        pending_revised_block_count: nextCount,
+        pending_revised_price: nextPrice,
+        pending_revised_plan_type: isPlanSwitch ? "blocking" : null,
+      };
 
   // Can't talk to PayPal (no creds) or nothing to revise there (fallback-created
-  // row, or a Standard plan) — record the target for the admin / webhook and
-  // stop. No approval step in this path.
-  if (!paypalConfigured() || !sub.paypal_subscription_id || sub.plan_type !== "blocking") {
+  // row) — record the target for the admin / webhook and stop. No approval step
+  // in this path.
+  if (!paypalConfigured() || !sub.paypal_subscription_id) {
     await admin
       .from("subscription_requests")
       .update({ ...queuedFields, pending_revision_approval_url: null })
       .eq("id", sub.id);
     return NextResponse.json({ ok: true, deferred: true, blockCount: nextCount, price: nextPrice });
+  }
+
+  // Every target of this route is the Blocking plan (a blocking subscriber
+  // changing counts, or a Standard subscriber switching in). PayPal's /revise
+  // rejects an inline `plan` pricing override unless `plan_id` is also sent —
+  // "plan_id MISSING_REQUIRED_PARAMETER" — so it always goes on the request.
+  const targetPlanId = PAYPAL_PLAN_IDS.blocking;
+  if (!targetPlanId) {
+    return NextResponse.json(
+      { ok: false, error: "missing_blocking_plan_id", hint: "Set PAYPAL_BLOCKING_PLAN_ID" },
+      { status: 500 }
+    );
   }
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://pumpradar24.com").replace(/\/$/, "");
@@ -128,8 +159,13 @@ export async function POST() {
       {
         method: "POST",
         body: {
-          // Inline override of the current plan's price only — no plan_id, we're
-          // not switching plans. Same shape create-subscription uses.
+          // The plan to run the subscription on. Required by PayPal's /revise
+          // whenever a `plan` pricing override is present, whether or not the
+          // plan is actually changing. For a Standard->Blocking switch this is
+          // the real change; for a blocking count change it's the same id.
+          plan_id: targetPlanId,
+          // Inline override of the Blocking plan's first regular cycle price to
+          // base + 49,99 € × N. Same shape create-subscription uses.
           plan: {
             billing_cycles: [
               {

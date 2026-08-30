@@ -45,24 +45,16 @@ export default async function SettingsPage({
   const subscriptionCancelled = plan?.status === "cancelled";
 
   let blocked: BlockedCompany[] = [];
-  let isFirstSubscription = true;
   let slotCount = 0;
 
   if (paid && !subscriptionCancelled) {
-    const [{ data: blockedData }, { count: activeCount }] = await Promise.all([
-      supabase
-        .from("blocked_companies")
-        .select(
-          "id, company_name, status, effective_from, requested_at, active_until, is_billable_addition"
-        )
-        .order("requested_at", { ascending: true }),
-      supabase
-        .from("subscription_requests")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "active"),
-    ]);
+    const { data: blockedData } = await supabase
+      .from("blocked_companies")
+      .select(
+        "id, company_name, status, effective_from, requested_at, active_until, is_billable_addition"
+      )
+      .order("requested_at", { ascending: true });
     blocked = (blockedData ?? []) as BlockedCompany[];
-    isFirstSubscription = (activeCount ?? 0) === 0;
     slotCount = plan?.blocked_company_count ?? 0;
   }
 
@@ -106,7 +98,6 @@ export default async function SettingsPage({
               userId={access.userId}
               slotCount={slotCount}
               initial={blocked}
-              isFirstSubscription={isFirstSubscription}
             />
           ) : (
             <div className="mt-3 text-sm text-slate-600">
