@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export type BlockedCompany = {
   id: string;
@@ -13,13 +12,53 @@ export type BlockedCompany = {
   is_billable_addition: boolean;
 };
 
-const ROW_COLUMNS =
-  "id, company_name, status, effective_from, requested_at, active_until, is_billable_addition";
-
 const SUPPORT_EMAIL = "dealers@pumpradar24.com";
 
 function formatActiveUntil(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+/** Map an API error code to a message the user can act on. */
+function friendlyError(code: string | undefined): string {
+  switch (code) {
+    case "slot_limit_reached":
+      return `You've filled all your blocked-company slots. Email ${SUPPORT_EMAIL} to add more.`;
+    case "slot_already_filled":
+      return "That slot is already filled.";
+    case "not_paid":
+    case "subscription_inactive":
+      return "Competitor blocking is part of an active paid subscription.";
+    case "company_name_too_long":
+      return "That name is too long.";
+    case "company_name_required":
+      return "Enter a company name.";
+    default:
+      return "Could not save.";
+  }
+}
+
+type FillResult = { row: BlockedCompany } | { error: string };
+
+async function callFillSlot(companyName: string, slotId?: string): Promise<FillResult> {
+  let res: Response;
+  try {
+    res = await fetch("/api/blocked-companies/fill-slot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyName, slotId }),
+    });
+  } catch {
+    return { error: "Could not save — check your connection." };
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    row?: BlockedCompany;
+    error?: string;
+  };
+  if (!res.ok || !data.ok || !data.row) {
+    return { error: friendlyError(data.error) };
+  }
+  return { row: data.row };
 }
 
 /** A single input + Save row. Shows a static confirmation line once saved. */
@@ -80,20 +119,19 @@ function InlineSaveInput({
  *
  * The number of slots is fixed at `slotCount` (their paid
  * blocked_company_count). Named slots are shown greyed out; empty slots get a
- * one-time "Save" input that just fills the name (status -> 'active'). There is
- * no add / remove / reschedule here any more — changing the slot count or
- * editing an existing name is handled manually by the team over email.
+ * one-time "Save" input that just fills the name (status -> 'active'). Writes go
+ * through /api/blocked-companies/fill-slot, which re-checks the paid slot count
+ * server-side (migration 0022 removed the direct client write path). There is
+ * no add / remove / reschedule here — changing the slot count or editing an
+ * existing name is handled manually by the team over email.
  */
 export default function BlockedCompaniesSection({
-  userId,
   slotCount,
   initial,
 }: {
-  userId: string;
   slotCount: number;
   initial: BlockedCompany[];
 }) {
-  const [supabase] = useState(() => createClient());
   const [rows, setRows] = useState<BlockedCompany[]>(initial);
 
   const activeRows = useMemo(
@@ -125,26 +163,17 @@ export default function BlockedCompaniesSection({
 
   /** Put a name on an existing blank, already-paid slot. Immediately active. */
   async function fillExistingSlot(name: string, existingId: string): Promise<string | null> {
-    const { data, error } = await supabase
-      .from("blocked_companies")
-      .update({ company_name: name, status: "active" })
-      .eq("id", existingId)
-      .select(ROW_COLUMNS)
-      .single();
-    if (error || !data) return error?.message ?? "Could not save.";
-    setRows((prev) => prev.map((r) => (r.id === existingId ? (data as BlockedCompany) : r)));
+    const result = await callFillSlot(name, existingId);
+    if ("error" in result) return result.error;
+    setRows((prev) => prev.map((r) => (r.id === existingId ? result.row : r)));
     return null;
   }
 
   /** Put a name on a paid slot that had no row yet. Immediately active. */
   async function fillVirtualSlot(name: string, virtualKey: string): Promise<string | null> {
-    const { data, error } = await supabase
-      .from("blocked_companies")
-      .insert({ user_id: userId, company_name: name, status: "active" })
-      .select(ROW_COLUMNS)
-      .single();
-    if (error || !data) return error?.message ?? "Could not save.";
-    setRows((prev) => [...prev, data as BlockedCompany]);
+    const result = await callFillSlot(name);
+    if ("error" in result) return result.error;
+    setRows((prev) => [...prev, result.row]);
     setVirtualSlots((prev) => prev.filter((k) => k !== virtualKey));
     return null;
   }

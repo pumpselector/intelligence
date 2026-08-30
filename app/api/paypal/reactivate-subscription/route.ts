@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { paypalConfigured, paypalRequest } from "@/lib/paypal";
+import { getOwnedSubscription, paypalConfigured, paypalRequest } from "@/lib/paypal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +46,15 @@ export async function POST() {
 
   if (!sub) {
     return NextResponse.json({ error: "no_reactivatable_subscription" }, { status: 404 });
+  }
+
+  // Defence in depth (see /api/paypal/cancel-subscription): confirm the PayPal
+  // subscription's custom_id is this user before calling PayPal's activate API.
+  if (paypalConfigured() && sub.paypal_subscription_id) {
+    const owned = await getOwnedSubscription(sub.paypal_subscription_id, user.id);
+    if (!owned) {
+      return NextResponse.json({ error: "subscription_ownership_mismatch" }, { status: 403 });
+    }
   }
 
   if (paypalConfigured() && sub.paypal_subscription_id) {

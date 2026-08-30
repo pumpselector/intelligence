@@ -119,6 +119,47 @@ export async function verifyWebhookSignature(headers: Headers, rawBody: string):
   }
 }
 
+/** PayPal subscription id shape, e.g. "I-BW452GLLEP1G". */
+export const PAYPAL_SUBSCRIPTION_ID_RE = /^I-[A-Z0-9]+$/;
+
+type MinimalSubscription = {
+  id: string;
+  status: string;
+  custom_id?: string;
+  billing_info?: { next_billing_time?: string };
+};
+
+/**
+ * Fetches a subscription from PayPal and confirms it belongs to `userId` — the
+ * app user id is stored in `custom_id` at creation time
+ * (/api/paypal/create-subscription). Returns the subscription on success, or
+ * `null` on a bad id shape, a lookup failure, or a `custom_id` that names a
+ * different user. Callers must treat `null` as "do not act on this subscription".
+ *
+ * Defence in depth: migration 0022 already stops a user from inserting a
+ * subscription_requests row with someone else's paypal_subscription_id, but the
+ * cancel / reactivate routes verify against PayPal directly as well, so a forged
+ * id can never reach PayPal's suspend / activate API.
+ */
+export async function getOwnedSubscription(
+  subscriptionId: string | null | undefined,
+  userId: string
+): Promise<MinimalSubscription | null> {
+  if (!subscriptionId || !PAYPAL_SUBSCRIPTION_ID_RE.test(subscriptionId)) return null;
+  try {
+    const sub = await paypalRequest<MinimalSubscription>(
+      `/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}`
+    );
+    // Reject only on an explicit mismatch — a subscription created by this app
+    // always carries custom_id; an absent one is left to the caller's own
+    // user_id-scoped DB lookup.
+    if (sub.custom_id && sub.custom_id !== userId) return null;
+    return sub;
+  } catch {
+    return null;
+  }
+}
+
 /** ISO timestamp -> "YYYY-MM-DD" for the `next_payment_date` date column. */
 export function toDateOnly(value: string | null | undefined): string | null {
   if (!value) return null;

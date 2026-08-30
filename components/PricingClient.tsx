@@ -119,56 +119,44 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
   }
 
   // ---- Fallback flow (no PayPal credentials): record a request row only ----
-  async function submitRequest(
-    plan: PlanType,
-    price: number,
-    blocked: string[],
-    blockedCount: number
-  ) {
+  // The insert used to happen straight from the browser; it now goes through
+  // /api/subscription-requests/create, which re-checks approval and computes
+  // the price server-side (migration 0022 removed the client write policy).
+  async function submitRequest(plan: PlanType, blocked: string[], blockedCount: number) {
     setSubmit({ plan, error: null });
 
-    const userId = await requireUserId();
-    if (!userId) return;
-
-    // First-ever subscription: nothing has an "active" billing cycle yet, so
-    // blocked companies take effect immediately instead of waiting on one.
-    const { count: activeCount, error: countError } = await supabase
-      .from("subscription_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("status", "active");
-
-    if (countError) {
-      setSubmit({ plan: null, error: countError.message });
+    let res: Response;
+    try {
+      res = await fetch("/api/subscription-requests/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, blockCount: blockedCount, companies: blocked }),
+      });
+    } catch {
+      setSubmit({ plan: null, error: "Could not submit your request. Please try again." });
       return;
     }
 
-    const isFirstSubscription = (activeCount ?? 0) === 0;
+    const data = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      detail?: string;
+    };
 
-    const { error: reqError } = await supabase
-      .from("subscription_requests")
-      .insert({ user_id: userId, plan_type: plan, monthly_price: price, blocked_company_count: blockedCount });
-
-    if (reqError) {
-      setSubmit({ plan: null, error: reqError.message });
-      return;
-    }
-
-    if (blocked.length > 0) {
-      const { error: blockError } = await supabase.from("blocked_companies").insert(
-        blocked.map((company_name) => ({
-          user_id: userId,
-          company_name,
-          status: isFirstSubscription ? "active" : "pending_next_cycle",
-        }))
-      );
-
-      if (blockError) {
-        setSubmit({ plan: null, error: blockError.message });
+    if (!res.ok || !data.ok) {
+      if (data.error === "unauthorized") {
+        router.push("/login");
         return;
       }
+      const message =
+        data.error === "not_approved"
+          ? APPROVAL_NOTE
+          : data.detail || data.error || "Could not submit your request.";
+      setSubmit({ plan: null, error: message });
+      return;
     }
 
+    setSubmit({ plan: null, error: null });
     router.push("/subscribe/thanks");
   }
 
@@ -295,12 +283,12 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
 
   function subscribeToStandard() {
     setModalOpen(false);
-    submitRequest("standard", BASE_PRICE, [], 0);
+    submitRequest("standard", [], 0);
   }
 
   function subscribeToBlocking() {
     const filled = companies.map((c) => c.trim()).filter((c) => c.length > 0);
-    submitRequest("blocking", blockingPrice(count), filled, count);
+    submitRequest("blocking", filled, count);
   }
 
   const content = (
@@ -348,7 +336,7 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => submitRequest("standard", BASE_PRICE, [], 0)}
+                  onClick={() => submitRequest("standard", [], 0)}
                   className="w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
                 >
                   {submit.plan === "standard" ? "Submitting…" : "Select"}

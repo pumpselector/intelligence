@@ -79,11 +79,7 @@ export default async function SettingsPage() {
               Your subscription is cancelled — competitor blocking has ended.
             </p>
           ) : paid ? (
-            <BlockedCompaniesSection
-              userId={access.userId}
-              slotCount={slotCount}
-              initial={blocked}
-            />
+            <BlockedCompaniesSection slotCount={slotCount} initial={blocked} />
           ) : (
             <div className="mt-3 text-sm text-slate-600">
               Competitor blocking is part of a paid subscription.{" "}

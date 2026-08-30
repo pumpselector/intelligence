@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { paypalConfigured, paypalRequest } from "@/lib/paypal";
+import { getOwnedSubscription, paypalConfigured, paypalRequest } from "@/lib/paypal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +50,17 @@ export async function POST() {
 
   if (!sub) {
     return NextResponse.json({ error: "no_active_subscription" }, { status: 404 });
+  }
+
+  // Defence in depth: the row is already scoped to user_id and (since migration
+  // 0022) can only have been written by our own server routes, but if PayPal is
+  // live also confirm the subscription's custom_id is this user before we ever
+  // hit PayPal's suspend API. Nothing has been mutated yet at this point.
+  if (paypalConfigured() && sub.paypal_subscription_id) {
+    const owned = await getOwnedSubscription(sub.paypal_subscription_id, user.id);
+    if (!owned) {
+      return NextResponse.json({ error: "subscription_ownership_mismatch" }, { status: 403 });
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10);
