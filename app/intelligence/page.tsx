@@ -1,4 +1,4 @@
-import { getAllDealers } from "@/lib/dealers";
+import { getAllDealers } from "@/lib/dealers-data";
 import { getAccess, hasFullAccess } from "@/lib/access";
 import { maskDealer } from "@/lib/mask";
 import AccessBanner from "@/components/AccessBanner";

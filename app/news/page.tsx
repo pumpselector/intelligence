@@ -1,4 +1,4 @@
-import { getAllNews } from "@/lib/news";
+import { getAllNews } from "@/lib/news-data";
 import { getAccess, hasFullAccess } from "@/lib/access";
 import { maskNews } from "@/lib/mask";
 import AccessBanner from "@/components/AccessBanner";

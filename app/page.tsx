@@ -4,8 +4,8 @@ import LatestIntelligence from "@/components/home/LatestIntelligence";
 import ProductPillars from "@/components/home/ProductPillars";
 import PricingPreview from "@/components/home/PricingPreview";
 import FinalCta from "@/components/home/FinalCta";
-import { getNetworkCoverageStats } from "@/lib/dealers";
-import { getAllNews } from "@/lib/news";
+import { getNetworkCoverageStats } from "@/lib/dealers-data";
+import { getAllNews } from "@/lib/news-data";
 import { maskNewsPreview } from "@/lib/mask";
 
 // The landing page has no per-request data (the counts and the news preview are
