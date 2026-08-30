@@ -26,6 +26,16 @@ const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 const APPROVAL_NOTE =
   "Once you sign up, our admin will review and approve your account. After approval, you can subscribe and get access to the data.";
 
+// The PayPal smart button renders at `style.height` px with `shape: "rect"`,
+// which the SDK draws with 4px corners. The plain <button>s on the pricing
+// cards mirror those exact dimensions so the Standard (PayPal) and Block
+// Competitors (Select) cards line up — same height, same corner radius, same
+// baseline inside the shared `mt-6 min-h-[52px]` wrapper. Colour is unchanged.
+const PAYPAL_BUTTON_HEIGHT = 45;
+const subscribeButtonShape = { height: PAYPAL_BUTTON_HEIGHT, borderRadius: 4 };
+const SUBSCRIBE_BUTTON_CLASS =
+  "flex w-full items-center justify-center px-4 text-sm font-semibold text-white transition-colors disabled:opacity-50";
+
 function ApprovalNote({ className = "" }: { className?: string }) {
   return (
     <p
@@ -325,7 +335,12 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
               ) : paypalEnabled ? (
                 <PayPalButtons
                   fundingSource={FUNDING.PAYPAL}
-                  style={{ layout: "vertical", label: "subscribe", shape: "rect", height: 45 }}
+                  style={{
+                    layout: "vertical",
+                    label: "subscribe",
+                    shape: "rect",
+                    height: PAYPAL_BUTTON_HEIGHT,
+                  }}
                   forceReRender={["standard"]}
                   createSubscription={() => startPaypalSubscription("standard", 0, [])}
                   onApprove={handlePaypalApprove}
@@ -337,7 +352,8 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
                   type="button"
                   disabled={busy}
                   onClick={() => submitRequest("standard", [], 0)}
-                  className="w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+                  style={subscribeButtonShape}
+                  className={`${SUBSCRIBE_BUTTON_CLASS} bg-slate-900 hover:bg-slate-800`}
                 >
                   {submit.plan === "standard" ? "Submitting…" : "Select"}
                 </button>
@@ -371,7 +387,8 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
                   type="button"
                   disabled={busy}
                   onClick={openBlockingModal}
-                  className="w-full rounded-md bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                  style={subscribeButtonShape}
+                  className={`${SUBSCRIBE_BUTTON_CLASS} bg-amber-600 hover:bg-amber-700`}
                 >
                   Select
                 </button>
