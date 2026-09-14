@@ -8,6 +8,12 @@ import { formatCount } from "@/lib/format";
 import { searchDealers } from "@/lib/filters";
 import { getProducerColor } from "@/lib/producerColor";
 
+// =========================================================================
+// EXCEL EXPORT BUTONUNU GÖSTER/GİZLE (Geçici Kontrol Değişkeni)
+// Butonu ve yazıyı tekrar aktifleştirmek için 'false' yerine 'true' yapın.
+const SHOW_EXPORT_BUTTON = false;
+// =========================================================================
+
 const PAGE_SIZE = 20;
 
 /** Builds and downloads an .xlsx of the given (already filtered/searched) rows. */
@@ -296,31 +302,34 @@ export default function IntelligenceDetailPanel({
             )}
           </p>
 
-          {restricted ? (
-            <Link
-              href="/pricing"
-              className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100"
-            >
-              <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Upgrade to export
-            </Link>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={!hasActiveFilters}
-                onClick={() => exportDealersToExcel(sorted)}
-                className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+          {/* SHOW_EXPORT_BUTTON false olduğu sürece aşağıdaki buton ve metinler gizlenir */}
+          {SHOW_EXPORT_BUTTON && (
+            restricted ? (
+              <Link
+                href="/pricing"
+                className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100"
               >
-                <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.75} />
-                Export to Excel
-              </button>
-              {!hasActiveFilters && (
-                <span className="text-xs text-slate-400">
-                  Please filter the data to enable Excel export.
-                </span>
-              )}
-            </div>
+                <Lock className="h-3.5 w-3.5" strokeWidth={1.75} />
+                Upgrade to export
+              </Link>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!hasActiveFilters}
+                  onClick={() => exportDealersToExcel(sorted)}
+                  className="flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 transition-colors hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Export to Excel
+                </button>
+                {!hasActiveFilters && (
+                  <span className="text-xs text-slate-400">
+                    Please filter the data to enable Excel export.
+                  </span>
+                )}
+              </div>
+            )
           )}
         </div>
       </div>
