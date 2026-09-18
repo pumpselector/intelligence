@@ -169,11 +169,11 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
               {formatEur(BASE_PRICE)}
               <span className="text-sm font-normal text-slate-400"> / month</span>
             </p>
-            <p className="mt-4 text-sm font-medium leading-relaxed text-slate-600">
+            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
               No commitment, cancel anytime.
             </p>
 
-            <div className="mt-8 flex min-h-[45px] flex-col justify-end">
+            <div className="mt-6 flex min-h-[45px] flex-col justify-end">
               {subscribingBlocked ? (
                 <ApprovalNote />
               ) : paypalEnabled ? (
