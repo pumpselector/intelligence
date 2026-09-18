@@ -146,8 +146,8 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
 
   const content = (
     <main className="flex flex-1 flex-col bg-slate-50 px-6 py-16">
-      <div className="mx-auto w-full max-w-xl">
-        <div className="text-center">
+<div className="mx-auto w-full max-w-md">
+  <div className="text-center">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
             Single price, All data !
           </h1>
@@ -162,8 +162,8 @@ export default function PricingClient({ canSubscribe = true }: { canSubscribe?: 
           </p>
         )}
 
-        <div className="mt-10">
-          <div className="flex flex-col rounded-xl border-2 border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mt-8">
+          <div className="flex flex-col rounded-xl border-2 border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
             <h2 className="text-xl font-semibold text-slate-900">Monthly Subscription</h2>
             <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
               {formatEur(BASE_PRICE)}
