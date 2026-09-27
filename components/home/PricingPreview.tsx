@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BASE_PRICE, PER_BLOCK_PRICE, formatEur } from "@/lib/pricing";
+import { BASE_PRICE, formatEur } from "@/lib/pricing";
 
 export default function PricingPreview() {
   return (
@@ -12,30 +12,15 @@ export default function PricingPreview() {
           </p>
         </div>
 
-        <div className="mx-auto mt-10 grid max-w-3xl gap-6 sm:grid-cols-2">
-          <div className="flex flex-col rounded-xl border border-[#DCE6ED] bg-white p-6">
-            <h3 className="text-lg font-semibold text-[#16243D]">Standard</h3>
+        <div className="mx-auto mt-10 max-w-md">
+          <div className="flex flex-col rounded-xl border border-[#DCE6ED] bg-white p-6 text-center">
+            <h3 className="text-lg font-semibold text-[#16243D]">Monthly Subscription</h3>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-[#16243D]">
               {formatEur(BASE_PRICE)}
               <span className="text-sm font-normal text-[#53657A]"> / month</span>
             </p>
             <p className="mt-4 text-sm leading-relaxed text-[#53657A]">
-              Full access to pump producer and pump dealer data.
-            </p>
-          </div>
-
-          <div className="flex flex-col rounded-xl border-2 border-[#F5A900]/60 bg-white p-6">
-            <h3 className="text-lg font-semibold text-[#16243D]">Block Competitors</h3>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-[#16243D]">
-              {formatEur(BASE_PRICE)}
-              <span className="text-sm font-normal text-[#53657A]">
-                {" "}
-                + {formatEur(PER_BLOCK_PRICE)} per blocked company / month
-              </span>
-            </p>
-            <p className="mt-4 text-sm leading-relaxed text-[#53657A]">
-              Everything in Standard, plus: prevent specific competitor domains from accessing the
-              platform.
+              No commitment, cancel anytime.
             </p>
           </div>
         </div>
