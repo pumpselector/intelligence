@@ -335,7 +335,7 @@ export default function IntelligenceDetailPanel({
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200">
-        <div className="max-h-[680px] overflow-auto">
+        <div>
           <table className="w-full min-w-[640px] table-fixed border-collapse text-sm">
             <colgroup>
               <col className="w-[15%]" />
