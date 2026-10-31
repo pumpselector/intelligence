@@ -19,7 +19,7 @@ type IntelligenceClientProps = {
 const MULTI_FILTER_LABELS: Record<"producers" | "countries" | "pumps", string> = {
   producers: "Pump Producer",
   countries: "Country",
-  pumps: "Product Type",
+  pumps: "Pump Type",
 };
 
 const MULTI_FILTER_ORDER: ("producers" | "countries" | "pumps")[] = ["pumps", "producers", "countries"];
@@ -179,7 +179,7 @@ export default function IntelligenceClient({ dealers, restricted = false }: Inte
 
             <div className="flex flex-col gap-2">
               <MultiSelectFilter
-                label="Product Type"
+                label="Pump Type"
                 options={pumpOptions}
                 selected={filters.pumps}
                 onChange={(next) => setFilters((f) => ({ ...f, pumps: next }))}
