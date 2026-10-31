@@ -44,6 +44,10 @@ export function searchDealers(dealers: Dealer[], search: string): Dealer[] {
 
 type DealerStringField = "pump" | "uretici" | "bayi_ulke" | "bayi_adi";
 
+// Case-insensitive, natural ordering: "Wangen" comes before "WOMA",
+// and "Pump 2" comes before "Pump 10".
+const optionCollator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
+
 /**
  * Distinct values for one field, computed from rows matching every OTHER
  * active filter (but not this one) — this is what makes the three filter
@@ -53,5 +57,5 @@ type DealerStringField = "pump" | "uretici" | "bayi_ulke" | "bayi_adi";
 export function optionsFor(dealers: Dealer[], filters: Filters, field: DealerStringField, exclude: keyof Filters): string[] {
   const partial: Filters = { ...filters, [exclude]: [] };
   const rows = filterDealers(dealers, partial);
-  return [...new Set(rows.map((r) => r[field]).filter(hasValue))].sort();
+  return [...new Set(rows.map((r) => r[field]).filter(hasValue))].sort(optionCollator.compare);
 }
